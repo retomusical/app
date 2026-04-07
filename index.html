@@ -69,9 +69,14 @@
         <!-- Section 2: User Panel -->
         <section id="panel-section" class="hidden w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl space-y-8 transform transition-all duration-500">
             <div class="flex justify-between items-center border-b border-white/10 pb-6">
-                <div>
-                    <h2 class="text-3xl font-black italic tracking-tighter uppercase mb-1">Tu <span class="text-primary">Panel</span></h2>
-                    <p class="text-slate-400 text-sm">Hola, <span id="user-display-name" class="text-white font-bold italic">Usuario</span></p>
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+                        <img id="main-user-avatar" src="https://api.dicebear.com/9.x/avataaars/svg" alt="Avatar" class="w-full h-full">
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-0.5">Tu <span class="text-primary">Panel</span></h2>
+                        <p class="text-slate-400 text-xs">Hola, <span id="user-display-name" class="text-white font-bold">Usuario</span></p>
+                    </div>
                 </div>
                 <div class="flex gap-2">
                     <button id="open-settings-btn" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl border border-white/10 transition-all group">
@@ -82,14 +87,11 @@
             </div>
 
             <!-- PIN Displays -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-gradient-to-br from-primary/20 to-secondary/20 p-6 rounded-2xl border border-white/10 text-center">
-                    <p class="text-slate-300 text-sm mb-2 uppercase tracking-widest">Pin Alexa (Voz)</p>
-                    <div id="user-pin" class="text-4xl font-black tracking-[0.3em] text-white tabular-nums drop-shadow-lg">----</div>
-                </div>
-                <div class="bg-gradient-to-br from-secondary/20 to-primary/20 p-6 rounded-2xl border border-white/10 text-center">
-                    <p class="text-slate-300 text-sm mb-2 uppercase tracking-widest">Pin Compartir (Web)</p>
-                    <div id="share-pin" class="text-4xl font-black tracking-[0.3em] text-white tabular-nums drop-shadow-lg text-secondary">----</div>
+            <div class="max-w-xs mx-auto mb-10">
+                <div class="bg-gradient-to-br from-primary/20 to-secondary/20 p-6 rounded-2xl border border-white/10 text-center relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <p class="text-slate-400 text-[10px] mb-2 uppercase tracking-[0.2em] font-bold">Pin Alexa (Voz)</p>
+                    <div id="user-pin" class="text-4xl font-black tracking-[0.3em] text-white tabular-nums drop-shadow-lg relative z-10 text-primary">----</div>
                 </div>
             </div>
 
@@ -107,10 +109,20 @@
 
                 <!-- My Playlists List -->
                 <div class="space-y-3">
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Mis Playlists</h3>
-                    <div id="my-playlists-list" class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                        <!-- Items generated via JS -->
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-2">Mis Playlists</h3>
+                    <div id="my-playlists-list" class="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                         <p class="text-slate-500 text-sm italic">Cargando tus listas...</p>
+                    </div>
+                </div>
+
+                <!-- Played History -->
+                <div id="history-section" class="space-y-3 pt-2">
+                    <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 border-b border-white/5 pb-2 flex items-center gap-2">
+                        <span>Retos de Amigos</span>
+                        <span class="text-[10px] bg-secondary/20 text-secondary px-2 rounded-full lowercase font-normal italic">jugadas recientemente</span>
+                    </h3>
+                    <div id="other-playlists-list" class="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        <p class="text-slate-500 text-[10px] italic">Aún no has jugado listas de otros.</p>
                     </div>
                 </div>
 
@@ -319,40 +331,132 @@
         </div>
     </div>
 
-    <!-- Settings / Profile Modal -->
     <div id="settings-modal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-[10001] animate-fade-in">
-        <div class="modal-content w-full max-w-md p-8 space-y-8">
-            <div class="flex justify-between items-center">
+        <div class="modal-content w-full max-w-2xl p-8">
+            <div class="flex justify-between items-center mb-8">
                 <h3 class="text-2xl font-black uppercase italic">Ajustes de Perfil</h3>
-                <button id="close-settings-btn" class="text-slate-400 hover:text-white text-3xl">&times;</button>
+                <button id="close-settings-btn" class="text-slate-400 hover:text-white text-3xl font-light">&times;</button>
             </div>
 
-            <!-- Name Customization -->
-            <div class="space-y-3">
-                <label class="text-sm font-bold uppercase tracking-widest text-slate-400">Tu Nombre</label>
-                <input type="text" id="settings-name-input" class="w-full bg-dark/50 border border-white/10 rounded-2xl px-6 py-4 text-lg font-bold outline-none focus:border-primary transition-all">
+            <!-- Tabs Navigation -->
+            <div class="flex gap-2 p-1 bg-black/40 rounded-2xl mb-8 border border-white/5">
+                <button class="settings-tab-btn active flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase italic tracking-widest transition-all" data-tab="profile">
+                    📄 Perfil
+                </button>
+                <button class="settings-tab-btn flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase italic tracking-widest transition-all text-slate-500 hover:text-white" data-tab="avatar">
+                    👤 Avatar
+                </button>
+                <button class="settings-tab-btn flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase italic tracking-widest transition-all text-slate-500 hover:text-white" data-tab="theme">
+                    🎨 Tema
+                </button>
             </div>
 
-            <!-- Theme Selection -->
-            <div class="space-y-4">
-                <label class="text-sm font-bold uppercase tracking-widest text-slate-400">Tema Visual</label>
-                <div class="grid grid-cols-5 gap-4">
-                    <div class="theme-dot active" data-theme="midnight" style="background: #121216;" title="Midnight"></div>
-                    <div class="theme-dot" data-theme="cyberpink" style="background: #ec4899;" title="Cyberpink"></div>
-                    <div class="theme-dot" data-theme="emerald" style="background: #10b981;" title="Emerald"></div>
-                    <div class="theme-dot" data-theme="solar" style="background: #f59e0b;" title="Solar"></div>
-                    <div class="theme-dot" data-theme="arctic" style="background: #ffffff;" title="Arctic"></div>
+            <!-- Tab: Profile -->
+            <div id="tab-profile" class="settings-tab-content space-y-6">
+                <div class="space-y-4">
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400">Nombre Público</label>
+                    <input type="text" id="settings-name-input" placeholder="Tu nombre" class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all font-bold placeholder:text-slate-500 text-lg">
+                </div>
+                <div class="bg-primary/5 p-6 rounded-2xl border border-primary/10">
+                    <p class="text-sm text-slate-300 leading-relaxed">
+                        Este es el nombre que verán los demás jugadores en el ranking y al compartir listas. Si lo dejas vacío, se usará tu nombre de Google.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab: Avatar -->
+            <div id="tab-avatar" class="settings-tab-content hidden space-y-8">
+                <div class="flex items-center gap-8 bg-white/5 p-6 rounded-2xl border border-white/10">
+                    <div id="avatar-preview-container" class="w-32 h-32 bg-dark rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex-shrink-0">
+                        <img id="avatar-preview" src="https://api.dicebear.com/9.x/avataaars/svg" alt="Avatar Preview" class="w-full h-full">
+                    </div>
+                    <div>
+                        <h4 class="font-black uppercase italic tracking-widest text-white mb-2">Tu Identidad Visual</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">Personaliza cada detalle. Los cambios se guardan en tu perfil de usuario y aparecen en el ranking global.</p>
+                    </div>
+                </div>
+
+                <div class="max-h-[350px] overflow-y-auto pr-4 custom-scrollbar">
+                    <div class="grid grid-cols-2 gap-4 pb-4">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Pelo / Gorro</label>
+                            <select id="avatar-top" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Color Pelo</label>
+                            <select id="avatar-hairColor" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Accesorios</label>
+                            <select id="avatar-accessories" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Color Accesorios</label>
+                            <select id="avatar-accessoriesColor" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Vello Facial</label>
+                            <select id="avatar-facialHair" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Color Vello</label>
+                            <select id="avatar-facialHairColor" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Ropa</label>
+                            <select id="avatar-clothing" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Color Ropa</label>
+                            <select id="avatar-clothingColor" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Tono Piel</label>
+                            <select id="avatar-skinColor" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Ojos</label>
+                            <select id="avatar-eyes" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Cejas</label>
+                            <select id="avatar-eyebrows" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold uppercase text-slate-500">Boca</label>
+                            <select id="avatar-mouth" class="avatar-select w-full bg-black/20 border border-white/10 rounded-lg px-3 py-3 text-xs text-white outline-none focus:ring-1 focus:ring-primary font-bold"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Theme -->
+            <div id="tab-theme" class="settings-tab-content hidden space-y-8">
+                <div class="space-y-4">
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400 block">Temas Predefinidos</label>
+                    <div class="grid grid-cols-5 gap-4">
+                        <div class="theme-dot active w-full aspect-square rounded-xl border-2 border-white/20 cursor-pointer transition-all hover:scale-110 active:scale-95" data-theme="midnight" style="background: #121216;" title="Midnight"></div>
+                        <div class="theme-dot w-full aspect-square rounded-xl border-2 border-transparent cursor-pointer transition-all hover:scale-110 active:scale-95" data-theme="cyberpink" style="background: #ec4899;" title="Cyberpink"></div>
+                        <div class="theme-dot w-full aspect-square rounded-xl border-2 border-transparent cursor-pointer transition-all hover:scale-110 active:scale-95" data-theme="emerald" style="background: #10b981;" title="Emerald"></div>
+                        <div class="theme-dot w-full aspect-square rounded-xl border-2 border-transparent cursor-pointer transition-all hover:scale-110 active:scale-95" data-theme="solar" style="background: #f59e0b;" title="Solar"></div>
+                        <div class="theme-dot w-full aspect-square rounded-xl border-2 border-transparent cursor-pointer transition-all hover:scale-110 active:scale-95" data-theme="arctic" style="background: #ffffff;" title="Arctic"></div>
+                    </div>
                 </div>
                 
-                <div class="flex items-center gap-4 pt-4 border-t border-white/5">
-                    <label class="text-sm font-bold uppercase tracking-widest text-slate-400">Personalizado</label>
-                    <input type="color" id="custom-theme-color" class="bg-transparent w-full h-10 border-none cursor-pointer">
+                <div class="space-y-4 pt-6 border-t border-white/5">
+                    <label class="text-xs font-bold uppercase tracking-widest text-slate-400 block">Color de Marca Personalizado</label>
+                    <div class="flex items-center gap-6 bg-black/20 p-4 rounded-xl border border-white/10">
+                        <input type="color" id="custom-theme-color" class="bg-transparent w-16 h-16 border-none cursor-pointer rounded-lg overflow-hidden">
+                        <div class="flex-1">
+                            <p class="text-xs text-slate-400">Selecciona el color principal que prefieras. Esto afectará a los botones, bordes y acentos de toda la aplicación.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <button id="save-settings-btn" class="w-full bg-primary hover:scale-[1.02] py-5 rounded-2xl font-black text-xl shadow-xl transition-all">
-                GUARDAR CAMBIOS
-            </button>
+            <div class="pt-8 mt-8 border-t border-white/10 flex gap-4">
+                <button id="save-settings-btn" class="flex-1 bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-2xl transition-all uppercase italic tracking-widest shadow-lg shadow-primary/25">Guardar Cambios</button>
+            </div>
         </div>
     </div>
 

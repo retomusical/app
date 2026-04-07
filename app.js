@@ -6,7 +6,8 @@ import {
     onAuthStateChanged, 
     signInWithPopup, 
     GoogleAuthProvider, 
-    signOut 
+    signOut,
+    updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
     getFirestore, 
@@ -165,6 +166,11 @@ async function handleUserAuthenticated(user) {
     if (userSnap.exists()) {
         const userData = userSnap.data();
         userPinDisplay.textContent = userData.pin;
+        userNameDisplay.textContent = userData.displayName || user.displayName;
+        
+        const avatarUrl = userData.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.uid}`;
+        const mainAvatar = document.getElementById('main-user-avatar');
+        if (mainAvatar) mainAvatar.src = avatarUrl;
     } else {
         // New user: Generate Alexa PIN
         const pin = await generateUniquePin();
@@ -225,6 +231,71 @@ async function generateUniquePin() {
 
 // --- Playlist Management Logic ---
 
+async function loadPlayedHistory() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const otherPlaylistsList = document.getElementById('other-playlists-list');
+    if (!otherPlaylistsList) return;
+
+    try {
+        const { collection, getDocs, orderBy, query, limit } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const historyRef = collection(db, "users", user.uid, "played_history");
+        const q = query(historyRef, orderBy("lastPlayed", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            otherPlaylistsList.innerHTML = '<p class="text-slate-500 text-[10px] italic">Aún no has jugado listas de otros.</p>';
+            return;
+        }
+
+        otherPlaylistsList.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const pin = doc.id;
+            
+            const div = document.createElement('div');
+            div.className = "flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5 hover:border-secondary/30 transition-all group";
+            div.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <h4 class="font-bold text-slate-100 text-xs truncate">${data.title}</h4>
+                    <p class="text-[8px] text-slate-500 uppercase">PIN: <span class="text-secondary font-mono font-bold">${pin}</span> • De: ${data.ownerName}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="play-this-btn p-2 bg-secondary/10 hover:bg-secondary text-[10px] font-bold rounded-lg transition-all" data-pin="${pin}" data-url="${data.url}" data-title="${data.title}">
+                        ▶
+                    </button>
+                    <button class="show-ranking-btn p-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition-all" data-pin="${pin}" data-title="${data.title}">
+                        🏆
+                    </button>
+                </div>
+            `;
+            otherPlaylistsList.appendChild(div);
+        });
+
+        // Event listeners para el historial
+        otherPlaylistsList.querySelectorAll('.play-this-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const el = e.currentTarget;
+                const { pin, url, title } = el.dataset;
+                currentPlaylist = { url, ownerName: "Mundo", sharePin: pin, title };
+                activePlaylistInfo.classList.remove('hidden');
+                activePlaylistOwner.textContent = `Reto de Amigo (${title})`;
+            });
+        });
+
+        otherPlaylistsList.querySelectorAll('.show-ranking-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const { pin, title } = e.currentTarget.dataset;
+                showRanking(pin, title);
+            });
+        });
+
+    } catch (error) {
+        console.error("Error loading history:", error);
+    }
+}
+
 async function loadMyPlaylists() {
     const q = query(collection(db, "playlists"), where("ownerUid", "==", currentUser.uid));
     const querySnapshot = await getDocs(q);
@@ -233,6 +304,7 @@ async function loadMyPlaylists() {
     
     if (querySnapshot.empty) {
         myPlaylistsList.innerHTML = '<p class="text-slate-500 text-sm italic">Aún no tienes playlists. Crea una arriba.</p>';
+        loadPlayedHistory();
         return;
     }
 
@@ -254,6 +326,11 @@ async function loadMyPlaylists() {
                 <button class="show-ranking-btn p-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition-all" data-pin="${pin}" data-title="${playlist.title}" title="Ver Ranking">
                     🏆
                 </button>
+                <button class="share-playlist-btn p-2 bg-green-500/10 hover:bg-green-500/20 text-green-500 rounded-lg transition-all" data-pin="${pin}" data-title="${playlist.title}" title="Compartir por WhatsApp">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.067 2.877 1.215 3.076.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.72.937 3.659 1.432 5.632 1.432h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                    </svg>
+                </button>
                 <button class="delete-playlist-btn p-2 text-slate-500 hover:text-red-400 transition-colors" data-pin="${pin}">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -264,8 +341,10 @@ async function loadMyPlaylists() {
         myPlaylistsList.appendChild(div);
     });
 
-    // Event listeners for generated buttons
-    document.querySelectorAll('.play-this-btn').forEach(btn => {
+    loadPlayedHistory();
+
+    // Event listeners para mis listas
+    document.querySelectorAll('#my-playlists-list .play-this-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const { pin, url, title } = e.target.dataset;
             currentPlaylist = { url, ownerName: "Mí", sharePin: pin, title };
@@ -275,16 +354,21 @@ async function loadMyPlaylists() {
         });
     });
 
-    document.querySelectorAll('.delete-playlist-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const pin = e.currentTarget.dataset.pin;
-            if (confirm("¿Seguro que quieres borrar esta playlist? El PIN y el ranking se perderán.")) {
-                await deletePlaylist(pin);
-            }
+    document.querySelectorAll('#my-playlists-list .share-playlist-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const { pin, title } = e.currentTarget.dataset;
+            sharePlaylist(pin, title);
         });
     });
 
-    document.querySelectorAll('.show-ranking-btn').forEach(btn => {
+    document.querySelectorAll('#my-playlists-list .delete-playlist-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const pin = e.currentTarget.dataset.pin;
+            await deletePlaylist(pin);
+        });
+    });
+
+    document.querySelectorAll('#my-playlists-list .show-ranking-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const { pin, title } = e.currentTarget.dataset;
             showRanking(pin, title);
@@ -319,21 +403,6 @@ createPlaylistBtn.addEventListener('click', async () => {
     }
 });
 
-async function deletePlaylist(pin) {
-    try {
-        // Note: Real deletion logic might need to clean up rankings too
-        // For simplicity in Phase 1, we just remove the playlist doc
-        const { deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-        await deleteDoc(doc(db, "playlists", pin));
-        await loadMyPlaylists();
-        
-        if (currentPlaylist.sharePin === pin) {
-            resetToMineBtn.click();
-        }
-    } catch (error) {
-        console.error("Error deleting playlist:", error);
-    }
-}
 
 loadFriendBtn.addEventListener('click', async () => {
     const pin = friendPinInput.value.trim().toUpperCase();
@@ -479,11 +548,11 @@ function checkAnswer() {
     let correctAnswer = "";
     let userInputCleaned = userAnswer;
 
-    if (gameState.mode === 'tracks') {
+    if (gameState.mode === 'title') {
         correctAnswer = cleanSongTitle(track.title);
         userInputCleaned = cleanSongTitle(userAnswer);
     } else {
-        correctAnswer = track.artist.name;
+        correctAnswer = track.artist;
     }
     
     clearInterval(gameState.timer);
@@ -536,7 +605,7 @@ function fuzzyMatch(input, target) {
     const s1 = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     const s2 = target.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
     
-    if (s1 === s2 || s2.includes(s1) || s1.includes(s2)) return true;
+    if (s1 === s2 || (s1.length > 3 && (s2.includes(s1) || s1.includes(s2)))) return true;
     
     const distance = levenshtein(s1, s2);
     const maxLength = Math.max(s1.length, s2.length);
@@ -642,11 +711,28 @@ async function updateScoreInFirestore(score) {
             showNotification("¡Primera puntuación registrada en este ranking! 🚀", "success");
         }
 
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const avatarUrl = userData.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.uid}`;
+
         await setDoc(scoreRef, {
             displayName: user.displayName || "Jugador",
             score: score,
+            avatarUrl: avatarUrl,
             timestamp: new Date()
         });
+
+        // Registrar en el historial del usuario que ha jugado a esta lista
+        // (Solo si no es suya, para no duplicar)
+        if (currentPlaylist.ownerUid !== user.uid) {
+            const historyRef = doc(db, "users", user.uid, "played_history", currentPlaylist.sharePin);
+            await setDoc(historyRef, {
+                title: currentPlaylist.title,
+                ownerName: currentPlaylist.ownerName,
+                url: currentPlaylist.url,
+                lastPlayed: new Date()
+            }, { merge: true });
+        }
         
     } catch (error) {
         console.error("Error updating score:", error);
@@ -684,19 +770,25 @@ async function showRanking(pin, title) {
         rankingList.innerHTML = "";
         let rank = 1;
         querySnapshot.forEach((doc) => {
-            const data = doc.data();
+            const scoreData = doc.data();
+            const isMe = auth.currentUser && scoreData.displayName === auth.currentUser.displayName;
+            const avatarUrl = scoreData.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${scoreData.displayName}`;
+            
             const row = document.createElement('div');
             row.className = `leaderboard-row flex items-center justify-between p-3 rounded-xl border border-white/5 ${rank <= 3 ? 'bg-white/5' : ''}`;
             
-            const badgeClass = rank <= 3 ? `rank-badge rank-badge-${rank}` : 'rank-badge text-slate-500';
-            const nameClass = rank <= 3 ? `rank-${rank} font-bold` : 'text-slate-300';
-
             row.innerHTML = `
-                <div class="flex items-center gap-4">
-                    <div class="${badgeClass}">${rank}</div>
-                    <div class="${nameClass}">${data.displayName || 'Anónimo'}</div>
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-bold text-primary border border-primary/20">
+                        ${rank}
+                    </div>
+                    <img src="${avatarUrl}" class="w-8 h-8 rounded-full bg-white/10 p-0.5 border border-white/10" alt="Avatar">
+                    <span class="font-bold text-sm ${isMe ? 'text-primary' : ''}">${scoreData.displayName || 'Anónimo'}</span>
                 </div>
-                <div class="font-mono font-bold text-slate-100">${data.score} pts</div>
+                <div class="text-right">
+                    <div class="font-black text-secondary">${scoreData.score.toLocaleString()} pts</div>
+                    <div class="text-[8px] text-slate-500 uppercase">${scoreData.timestamp ? new Date(scoreData.timestamp.toDate()).toLocaleDateString() : ''}</div>
+                </div>
             `;
             rankingList.appendChild(row);
             rank++;
@@ -892,12 +984,11 @@ async function processRoundResults(correctAnswer) {
     
     let points = 0;
     if (playerCurrentRoundState.answered) {
-        // Usamos la misma lógica de comparación que en el modo individual
-        const cleanUserAnswer = cleanTitle(playerCurrentRoundState.userAnswer).toLowerCase();
-        const cleanCorrectAnswer = cleanTitle(correctAnswer).toLowerCase();
+        const userInputCleaned = cleanSongTitle(playerCurrentRoundState.userAnswer);
+        const isCorrect = fuzzyMatch(userInputCleaned, correctAnswer);
         
-        if (cleanUserAnswer === cleanCorrectAnswer || cleanCorrectAnswer.includes(cleanUserAnswer) && cleanUserAnswer.length > 3) {
-            // Cálculo de puntos: 500 Base + hasta 500 por velocidad (15 segundos max)
+        if (isCorrect) {
+            // Cálculo de puntos: 100 Base + hasta 100 por velocidad (15 segundos max)
             const timeTaken = playerCurrentRoundState.answerTime - playerCurrentRoundState.startTime;
             const speedBonus = Math.max(0, Math.floor((15000 - timeTaken) / 15000 * 500));
             points = 500 + speedBonus;
@@ -977,15 +1068,13 @@ function runHostTimer() {
             // Fin de ronda para todos
             await updateDoc(doc(db, "rooms", currentRoom.id), {
                 status: 'checking',
-                lastCorrectAnswer: cleanTitle(track.title)
+                lastCorrectAnswer: cleanSongTitle(track.title)
             });
             hostNextRoundBtn.classList.remove('hidden');
         }
     }, 1000);
 }
 
-// Auxiliar para limpiar títulos (copia de la anterior para consistencia)
-const cleanTitle = (str) => str.replace(/\s*\([^)]*\)*/g, '').trim();
 
 playerSubmitBtn.addEventListener('click', submitPlayerAnswer);
 playerAnswerInput.addEventListener('keypress', (e) => {
@@ -1005,8 +1094,6 @@ async function submitPlayerAnswer() {
 
     try {
         showNotification("¡Respuesta enviada! Cruzando dedos...", "info");
-        // No enviamos la puntuación todavía, esperamos a que el Host revele la respuesta 
-        // para evitar que alguien use la API de Firebase para ver el título antes de tiempo.
     } catch (e) {
         console.error(e);
     }
@@ -1014,13 +1101,220 @@ async function submitPlayerAnswer() {
 
 // --- Profile & Settings Logic ---
 
-openSettingsBtn.addEventListener('click', () => {
-    settingsNameInput.value = auth.currentUser.displayName || "";
+const AVATAR_OPTIONS = {
+    top: [
+        { v: "bigHair", l: "Pelo Largo" }, { v: "bob", l: "Corte Bob" }, { v: "bun", l: "Moño" },
+        { v: "curly", l: "Rizado" }, { v: "curvy", l: "Ondulado" }, { v: "dreads", l: "Rastas" },
+        { v: "frida", l: "Frida" }, { v: "frizzle", l: "Encrespado" }, { v: "fro", l: "Afro" },
+        { v: "hat", l: "Gorra" }, { v: "hijab", l: "Hiyab" }, { v: "longButNotTooLong", l: "Media Melena" },
+        { v: "shaggy", l: "Despeinado" }, { v: "shortFlat", l: "Corto Liso" }, { v: "shortRound", l: "Corto Redondo" },
+        { v: "turban", l: "Turbante" }, { v: "winterHat1", l: "Gorro Invierno" }, { v: "noHair", l: "Calvo" }
+    ],
+    accessories: [
+        { v: "none", l: "Ninguno" }, { v: "eyepatch", l: "Parche" }, { v: "kurt", l: "Kurt" },
+        { v: "prescription01", l: "Gafas 1" }, { v: "prescription02", l: "Gafas 2" },
+        { v: "round", l: "Redondas" }, { v: "sunglasses", l: "Sol" }, { v: "wayfarers", l: "Wayfarers" }
+    ],
+    hairColor: [
+        { v: "2c1b18", l: "Negro" }, { v: "4a312c", l: "Castaño Oscuro" }, { v: "724133", l: "Castaño" },
+        { v: "a55728", l: "Pelirrojo" }, { v: "b58143", l: "Rubio Oscuro" }, { v: "d6b370", l: "Rubio" },
+        { v: "ecdcbf", l: "Platino" }, { v: "f59797", l: "Rosa" }, { v: "e8e1e1", l: "Canoso" }
+    ],
+    facialHair: [
+        { v: "none", l: "Ninguno" }, { v: "beardLight", l: "Barba Corta" }, { v: "beardMajestic", l: "Barba Larga" },
+        { v: "beardMedium", l: "Barba Media" }, { v: "moustacheFancy", l: "Bigote Curvo" }, { v: "moustacheMagnum", l: "Bigote Magnum" }
+    ],
+    clothing: [
+        { v: "blazerAndShirt", l: "Americana y Camisa" }, { v: "blazerAndSweater", l: "Americana y Jersey" },
+        { v: "collarAndSweater", l: "Jersey con Cuello" }, { v: "graphicShirt", l: "Camiseta con Logo" },
+        { v: "hoodie", l: "Sudadera" }, { v: "overall", l: "Peto" }, { v: "shirtCrewNeck", l: "Camiseta Cuello Redondo" },
+        { v: "shirtVNeck", l: "Camiseta Cuello V" }
+    ],
+    clothesColor: [
+        { v: "262e33", l: "Negro" }, { v: "65c9ff", l: "Azul Cielo" }, { v: "5199e4", l: "Azul Real" },
+        { v: "25557c", l: "Azul Marino" }, { v: "e6e6e6", l: "Gris Claro" }, { v: "929598", l: "Gris" },
+        { v: "3c4f5c", l: "Gris Carbón" }, { v: "b1e2ff", l: "Azul Pastel" }, { v: "a7ffc4", l: "Verde Menta" },
+        { v: "ffde55", l: "Amarillo" }, { v: "ffafc9", l: "Rosa" }, { v: "ff5c5c", l: "Rojo" }, { v: "ffffff", l: "Blanco" }
+    ],
+    skinColor: [
+        { v: "614335", l: "Muy Oscuro" }, { v: "ae5d29", l: "Oscuro" }, { v: "d08b5b", l: "Bronceado" },
+        { v: "edb98a", l: "Trigueño" }, { v: "fd9841", l: "Moreno" }, { v: "f8d25c", l: "Amarillo" }, { v: "ffdbb4", l: "Pálido" }
+    ],
+    eyes: [
+        { v: "default", l: "Normal" }, { v: "closed", l: "Cerrados" }, { v: "cry", l: "Llorando" },
+        { v: "eyeRoll", l: "Ojos Arriba" }, { v: "happy", l: "Feliz" }, { v: "hearts", l: "Corazones" },
+        { v: "side", l: "Mirada Lateral" }, { v: "squint", l: "Entrecerrados" }, { v: "surprised", l: "Sorprendido" },
+        { v: "wink", l: "Guiño" }
+    ],
+    mouth: [
+        { v: "default", l: "Normal" }, { v: "concerned", l: "Preocupado" }, { v: "disbelief", l: "Incrédulo" },
+        { v: "eating", l: "Comiendo" }, { v: "grimace", l: "Mueca" }, { v: "sad", l: "Triste" },
+        { v: "screamOpen", l: "Gritando" }, { v: "serious", l: "Serio" }, { v: "smile", l: "Sonrisa" },
+        { v: "tongue", l: "Lengua fuera" }
+    ],
+    accessoriesColor: [
+        { v: "262e33", l: "Negro" }, { v: "65c9ff", l: "Azul Cielo" }, { v: "5199e4", l: "Azul Real" },
+        { v: "25557c", l: "Azul Marino" }, { v: "e6e6e6", l: "Gris Claro" }, { v: "929598", l: "Gris" },
+        { v: "3c4f5c", l: "Gris Carbón" }, { v: "b1e2ff", l: "Azul Pastel" }, { v: "a7ffc4", l: "Verde Menta" },
+        { v: "ffde55", l: "Amarillo" }, { v: "ffafc9", l: "Rosa" }, { v: "ff5c5c", l: "Rojo" }, { v: "ffffff", l: "Blanco" }
+    ],
+    facialHairColor: [
+        { v: "262e33", l: "Negro" }, { v: "4a312c", l: "Castaño Oscuro" }, { v: "724133", l: "Castaño" },
+        { v: "a55728", l: "Pelirrojo" }, { v: "b58143", l: "Rubio" }, { v: "c0a183", l: "Platino" },
+        { v: "e8e1e1", l: "Canoso" }
+    ],
+    eyebrows: [
+        { v: "default", l: "Normal" }, { v: "angry", l: "Enfadado" }, { v: "flatNatural", l: "Planas" },
+        { v: "raisedExcited", l: "Excitas" }, { v: "sadConcerned", l: "Triste" }, { v: "unibrowNatural", l: "Entrecejo" },
+        { v: "upDown", l: "Asimétricas" }
+    ]
+};
+
+const avatarPreview = document.getElementById('avatar-preview');
+
+const avatarSelects = {
+    top: document.getElementById('avatar-top'),
+    hairColor: document.getElementById('avatar-hairColor'),
+    accessories: document.getElementById('avatar-accessories'),
+    accessoriesColor: document.getElementById('avatar-accessoriesColor'),
+    facialHair: document.getElementById('avatar-facialHair'),
+    facialHairColor: document.getElementById('avatar-facialHairColor'),
+    clothing: document.getElementById('avatar-clothing'),
+    clothesColor: document.getElementById('avatar-clothingColor'),
+    skinColor: document.getElementById('avatar-skinColor'),
+    eyes: document.getElementById('avatar-eyes'),
+    eyebrows: document.getElementById('avatar-eyebrows'),
+    mouth: document.getElementById('avatar-mouth')
+};
+
+function initAvatarSelects() {
+    Object.keys(AVATAR_OPTIONS).forEach(key => {
+        const select = avatarSelects[key];
+        if (!select) return;
+        
+        select.innerHTML = AVATAR_OPTIONS[key].map(opt => 
+            `<option value="${opt.v}">${opt.l}</option>`
+        ).join('');
+        
+        select.addEventListener('change', updateAvatarPreview);
+    });
+}
+
+function updateAvatarPreview() {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const params = new URLSearchParams({
+        seed: user.uid
+    });
+    
+    // Forzar 100% de probabilidad por defecto para tipos específicos si se seleccionan
+    // O 0% si se elige "none"
+    Object.keys(avatarSelects).forEach(key => {
+        const val = avatarSelects[key].value;
+        if (val && val !== 'none') {
+            params.append(key, val);
+            if (key === 'accessories') params.set('accessoriesProbability', 100);
+            if (key === 'facialHair') params.set('facialHairProbability', 100);
+            if (key === 'top') params.set('topProbability', 100);
+        } else if (val === 'none') {
+            if (key === 'accessories') params.set('accessoriesProbability', 0);
+            if (key === 'facialHair') params.set('facialHairProbability', 0);
+            if (key === 'top') params.set('topProbability', 0);
+        }
+    });
+
+    const url = `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
+    if (avatarPreview) avatarPreview.src = url;
+    return url;
+}
+
+openSettingsBtn.addEventListener('click', async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    // Reset tabs to profile by default on open
+    const profileTabBtn = document.querySelector('.settings-tab-btn[data-tab="profile"]');
+    if (profileTabBtn) profileTabBtn.click();
+    
+    settingsNameInput.value = user.displayName || "";
+    
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.avatarConfig) {
+            Object.keys(data.avatarConfig).forEach(key => {
+                if (avatarSelects[key]) avatarSelects[key].value = data.avatarConfig[key];
+            });
+        }
+    }
+    
+    updateAvatarPreview();
     settingsModal.classList.remove('hidden');
 });
 
-closeSettingsBtn.addEventListener('click', () => {
-    settingsModal.classList.add('hidden');
+closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+saveSettingsBtn.addEventListener('click', async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const newName = settingsNameInput.value.trim();
+    const avatarConfig = {};
+    Object.keys(avatarSelects).forEach(key => {
+        avatarConfig[key] = avatarSelects[key].value;
+    });
+    
+    const avatarUrl = updateAvatarPreview();
+
+    try {
+        await updateProfile(user, { displayName: newName });
+        console.log("Guardando en Firestore:", { displayName: newName, avatarConfig, avatarUrl });
+        await setDoc(doc(db, "users", user.uid), {
+            displayName: newName,
+            avatarConfig: avatarConfig,
+            avatarUrl: avatarUrl
+        }, { merge: true });
+        console.log("Guardado completado con éxito");
+        
+        showNotification("Perfil actualizado correctamente", "success");
+        settingsModal.classList.add('hidden');
+        document.getElementById('user-display-name').textContent = newName;
+        
+        const mainAvatar = document.getElementById('main-user-avatar');
+        if (mainAvatar) mainAvatar.src = avatarUrl;
+        
+    } catch (error) {
+        console.error("Error saving profile:", error);
+        showNotification("Error al guardar el perfil", "error");
+    }
+});
+
+initAvatarSelects();
+
+// --- Lógica de Pestañas del Modal de Ajustes ---
+const tabBtns = document.querySelectorAll('.settings-tab-btn');
+const tabContents = document.querySelectorAll('.settings-tab-content');
+
+tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const targetTab = btn.dataset.tab;
+        
+        // Reset buttons
+        tabBtns.forEach(b => {
+            b.classList.remove('active', 'bg-primary', 'text-white');
+            b.classList.add('text-slate-500', 'hover:text-white');
+        });
+        
+        // Active button
+        btn.classList.add('active', 'bg-primary', 'text-white');
+        btn.classList.remove('text-slate-500', 'hover:text-white');
+        
+        // Tab content
+        tabContents.forEach(content => content.classList.add('hidden'));
+        const targetContent = document.getElementById(`tab-${targetTab}`);
+        if (targetContent) targetContent.classList.remove('hidden');
+    });
 });
 
 themeDots.forEach(dot => {
@@ -1044,33 +1338,10 @@ async function applyTheme(themeName, customColor = null) {
         document.documentElement.style.setProperty('--border', `${customColor}22`);
         localStorage.setItem('custom-theme-color', customColor);
     } else {
-        // Limpiar propiedades personalizadas si no es custom
         document.documentElement.style.removeProperty('--primary');
         document.documentElement.style.removeProperty('--border');
     }
 }
-
-saveSettingsBtn.addEventListener('click', async () => {
-    const newName = settingsNameInput.value.trim();
-    if (!newName) return;
-
-    try {
-        await updateProfile(auth.currentUser, { displayName: newName });
-        document.getElementById('user-display-name').textContent = newName;
-        
-        // Guardar theme en firestore si queremos persistencia entre dispositivos
-        await setDoc(doc(db, "users", auth.currentUser.uid), {
-            theme: document.body.getAttribute('data-theme'),
-            customColor: localStorage.getItem('custom-theme-color') || null
-        }, { merge: true });
-
-        showNotification("Perfil actualizado correctamente.", "success");
-        settingsModal.classList.add('hidden');
-    } catch (e) {
-        console.error(e);
-        showNotification("Error al guardar ajustes.", "error");
-    }
-});
 
 // Cargar tema al iniciar
 window.addEventListener('DOMContentLoaded', () => {
@@ -1104,3 +1375,81 @@ function showNotification(message, type = 'info') {
         setTimeout(() => toast.remove(), 400);
     }, 3000);
 }
+
+// --- Funicones de Compartido (WhatsApp & Deep Linking) ---
+
+async function deletePlaylist(pin) {
+    if (!confirm("¿Seguro que quieres eliminar esta playlist de tu lista?")) return;
+
+    try {
+        const { deleteDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        await deleteDoc(doc(db, "playlists", pin));
+        showNotification("Playlist eliminada", "success");
+        loadMyPlaylists();
+    } catch (error) {
+        console.error("Error deleting playlist:", error);
+        showNotification("No tienes permiso para borrar esta lista", "error");
+    }
+}
+
+function sharePlaylist(pin, title) {
+    const url = `${window.location.origin}${window.location.pathname}?join=${pin}`;
+    const text = `🎵 ¡Te reto en Reto Musical! \n\nLista: ${title}\nDale al link para jugar directamente: ${url}`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
+}
+
+// Deep Linking: Auto-join por URL
+function checkDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const joinPin = params.get('join');
+    if (joinPin) {
+        // Limpiamos la URL para que no se quede el parámetro estorbando
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Esperamos a que el usuario esté autenticado para añadir
+        onAuthStateChanged(getAuth(), (user) => {
+            if (user) {
+                setTimeout(() => {
+                    addPlaylistByPin(joinPin);
+                }, 1000);
+            } else {
+                showNotification("Inicia sesión para añadir la lista compartida", "info");
+            }
+        }, { once: true });
+    }
+}
+
+async function addPlaylistByPin(pin) {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+        const { getDoc, updateDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+        const pinDoc = await getDoc(doc(db, "playlists", pin));
+        
+        if (!pinDoc.exists()) {
+            showNotification("Ese código de playlist ya no existe", "error");
+            return;
+        }
+
+        const playlistData = pinDoc.data();
+        
+        // En este MVP, para que aparezca en "Mis Playlists", clonamos/actualizamos el dueño
+        // O podríamos añadirlo a una lista de 'colaboradores'. 
+        // Para simplificar y que el usuario vea la lista rápido:
+        await updateDoc(doc(db, "playlists", pin), {
+            ownerUid: user.uid,
+            ownerName: user.displayName || "Usuario"
+        });
+
+        showNotification(`¡Lista "${playlistData.title}" añadida!`, "success");
+        loadMyPlaylists();
+    } catch (error) {
+        console.error("Error adding by pin:", error);
+        showNotification("No se pudo añadir la lista", "error");
+    }
+}
+
+// Iniciar chequeo al cargar
+checkDeepLink();
