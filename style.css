@@ -58,20 +58,53 @@
 body {
     background-color: var(--bg);
     color: var(--text);
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), 
+                color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.5s ease;
     font-family: 'Outfit', sans-serif;
     -webkit-font-smoothing: antialiased;
     margin: 0;
 }
 
+/* Transiciones globales para elementos que usan variables de tema */
+* {
+    transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+}
+
 /* Minimalist Overrides */
 .bg-dark { background-color: var(--bg) !important; }
 .bg-white\/5 { background-color: var(--surface) !important; }
-.bg-primary { background-color: var(--primary) !important; color: var(--bg) !important; }
-.bg-secondary { background-color: var(--secondary) !important; }
+.bg-primary { 
+    background-color: var(--primary) !important; 
+    color: var(--bg) !important; 
+    box-shadow: 0 4px 20px -5px var(--primary);
+}
+.bg-secondary { 
+    background-color: var(--secondary) !important; 
+    box-shadow: 0 4px 20px -5px var(--secondary);
+}
 .text-primary { color: var(--primary) !important; }
 .text-secondary { color: var(--secondary) !important; }
 .border-white\/10 { border-color: var(--border) !important; }
+
+/* Glow Effects */
+.glow-primary {
+    filter: drop-shadow(0 0 8px var(--primary));
+}
+
+.glow-secondary {
+    filter: drop-shadow(0 0 8px var(--secondary));
+}
+
+/* Animation for active items */
+.animate-pulse-slow {
+    animation: pulse-glow 3s infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px var(--primary)); }
+    50% { opacity: 0.8; filter: drop-shadow(0 0 15px var(--primary)); }
+}
 
 /* Custom Transitions & Animations */
 section { transition: opacity 0.4s ease, transform 0.4s ease; }

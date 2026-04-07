@@ -1,43 +1,37 @@
 // app.js - Phase 2: Game Logic & Music Integration
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { MusicAPI } from "./api.js";
+import { auth, db, provider } from './modules/firebase.js';
 import { 
-    getAuth, 
     onAuthStateChanged, 
     signInWithPopup, 
-    GoogleAuthProvider, 
-    signOut,
-    updateProfile
+    signOut, 
+    updateProfile 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { 
-    getFirestore, 
     doc, 
     getDoc, 
     setDoc, 
-    collection, 
-    query, 
-    where, 
+    updateDoc, 
+    increment,
+    collection,
+    query,
+    where,
     getDocs,
-    updateDoc
+    orderBy,
+    limit,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// --- Firebase Configuration ---
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
+// Módulos locales
+import { 
+    initAvatarSelects, 
+    updateAvatarPreview, 
+    generateSecretWord 
+} from './modules/avatar.js';
+import { initThemeSystem } from './modules/theme.js';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+import { MusicAPI } from './api.js';
 
-// --- Utilities ---
+// --- State & DOM References ---
 const cleanSongTitle = (str) => {
     if (!str) return "";
     return str.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/, ' ').trim();
@@ -165,21 +159,18 @@ async function handleUserAuthenticated(user) {
     const userSnap = await getDoc(userRef);
 
     if (userSnap.exists()) {
-        const userData = userSnap.data();
-        let pin = userData.pin;
-        let secretWord = userData.secretWord;
-
-        // Migración: Si no tiene palabra clave, generarla
-        if (!secretWord) {
-            secretWord = generateSecretWord();
-            await updateDoc(userRef, { secretWord: secretWord });
+        const data = userSnap.data();
+        if (!data.secretWord) {
+            const newSecretWord = generateSecretWord();
+            await updateDoc(userRef, { secretWord: newSecretWord });
+            userPinDisplay.textContent = data.pin || "####";
+            userSecretWordDisplay.textContent = newSecretWord;
+        } else {
+            userPinDisplay.textContent = data.pin || "####";
+            userSecretWordDisplay.textContent = data.secretWord;
         }
-
-        userPinDisplay.textContent = pin;
-        if (userSecretWordDisplay) userSecretWordDisplay.textContent = secretWord;
-        userNameDisplay.textContent = userData.displayName || user.displayName;
         
-        const avatarUrl = userData.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.uid}`;
+        const avatarUrl = data.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.uid}`;
         const mainAvatar = document.getElementById('main-user-avatar');
         if (mainAvatar) mainAvatar.src = avatarUrl;
     } else {
@@ -204,18 +195,6 @@ async function handleUserAuthenticated(user) {
     
     await loadMyPlaylists();
     showSection('panel');
-}
-
-const ALEXA_WORDS = [
-    "MELON", "SANDIA", "GUITARRA", "PIANO", "RADIO", "DISCO", "CEBRA", "TIGRE", 
-    "LUNA", "SOL", "ESTRELLA", "NUBE", "PLAYA", "MONTE", "RIO", "MAR", 
-    "BARCO", "TREN", "FLOR", "ARBOL", "CASA", "LIBRO", "PULPO", "GATO", 
-    "PERRO", "AVION", "COCHE", "MESA", "SILLA", "RELOJ", "DADO", "LLAVE", 
-    "PUERTA", "VENTANA", "QUESO", "PAN", "LECHE", "MIEL", "LAGO", "BOSQUE"
-];
-
-function generateSecretWord() {
-    return ALEXA_WORDS[Math.floor(Math.random() * ALEXA_WORDS.length)];
 }
 
 async function generateUniqueLetterPin() {
@@ -282,17 +261,17 @@ async function loadPlayedHistory() {
             const pin = doc.id;
             
             const div = document.createElement('div');
-            div.className = "flex items-center justify-between bg-white/5 p-3 rounded-xl border border-white/5 hover:border-secondary/30 transition-all group";
+            div.className = "flex items-center justify-between bg-white/5 p-4 rounded-xl border border-white/5 hover:border-secondary/30 transition-all group animate-fade-in";
             div.innerHTML = `
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-slate-100 text-xs truncate">${data.title}</h4>
-                    <p class="text-[8px] text-slate-500 uppercase">PIN: <span class="text-secondary font-mono font-bold">${pin}</span> • De: ${data.ownerName}</p>
+                    <h4 class="font-bold text-slate-100 truncate">${data.title}</h4>
+                    <p class="text-[10px] text-slate-500 uppercase tracking-wider">PIN: <span class="text-secondary font-mono font-bold">${pin}</span> • De: ${data.ownerName}</p>
                 </div>
                 <div class="flex gap-2">
-                    <button class="play-this-btn p-2 bg-secondary/10 hover:bg-secondary text-[10px] font-bold rounded-lg transition-all" data-pin="${pin}" data-url="${data.url}" data-title="${data.title}">
-                        ▶
+                    <button class="play-this-btn px-4 py-2 bg-secondary/10 hover:bg-secondary text-xs font-bold rounded-lg transition-all" data-pin="${pin}" data-url="${data.url}" data-title="${data.title}">
+                        Jugar
                     </button>
-                    <button class="show-ranking-btn p-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition-all" data-pin="${pin}" data-title="${data.title}">
+                    <button class="show-ranking-btn p-2 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-500 rounded-lg transition-all" data-pin="${pin}" data-title="${data.title}" title="Ver Ranking">
                         🏆
                     </button>
                 </div>
@@ -305,9 +284,15 @@ async function loadPlayedHistory() {
             btn.addEventListener('click', (e) => {
                 const el = e.currentTarget;
                 const { pin, url, title } = el.dataset;
-                currentPlaylist = { url, ownerName: "Mundo", sharePin: pin, title };
+                currentPlaylist = { url, ownerName: "Amigo", sharePin: pin, title };
                 activePlaylistInfo.classList.remove('hidden');
                 activePlaylistOwner.textContent = `Reto de Amigo (${title})`;
+                showNotification(`Lista de Amigo cargada: ${title}`, "info");
+                
+                // Scroll suave a los modos de juego
+                document.getElementById('play-tracks-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.getElementById('play-tracks-btn').classList.add('ring-2', 'ring-secondary');
+                setTimeout(() => document.getElementById('play-tracks-btn').classList.remove('ring-2', 'ring-secondary'), 2000);
             });
         });
 
@@ -378,6 +363,11 @@ async function loadMyPlaylists() {
             activePlaylistInfo.classList.remove('hidden');
             activePlaylistOwner.textContent = `Tu Lista (${title})`;
             showNotification(`Cargada playlist: ${title}`, "success");
+            
+            // Scroll suave a los modos de juego
+            document.getElementById('play-tracks-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            document.getElementById('play-tracks-btn').classList.add('ring-2', 'ring-primary');
+            setTimeout(() => document.getElementById('play-tracks-btn').classList.remove('ring-2', 'ring-primary'), 2000);
         });
     });
 
@@ -1128,74 +1118,7 @@ async function submitPlayerAnswer() {
 
 // --- Profile & Settings Logic ---
 
-const AVATAR_OPTIONS = {
-    top: [
-        { v: "bigHair", l: "Pelo Largo" }, { v: "bob", l: "Corte Bob" }, { v: "bun", l: "Moño" },
-        { v: "curly", l: "Rizado" }, { v: "curvy", l: "Ondulado" }, { v: "dreads", l: "Rastas" },
-        { v: "frida", l: "Frida" }, { v: "frizzle", l: "Encrespado" }, { v: "fro", l: "Afro" },
-        { v: "hat", l: "Gorra" }, { v: "hijab", l: "Hiyab" }, { v: "longButNotTooLong", l: "Media Melena" },
-        { v: "shaggy", l: "Despeinado" }, { v: "shortFlat", l: "Corto Liso" }, { v: "shortRound", l: "Corto Redondo" },
-        { v: "turban", l: "Turbante" }, { v: "winterHat1", l: "Gorro Invierno" }, { v: "noHair", l: "Calvo" }
-    ],
-    accessories: [
-        { v: "none", l: "Ninguno" }, { v: "eyepatch", l: "Parche" }, { v: "kurt", l: "Kurt" },
-        { v: "prescription01", l: "Gafas 1" }, { v: "prescription02", l: "Gafas 2" },
-        { v: "round", l: "Redondas" }, { v: "sunglasses", l: "Sol" }, { v: "wayfarers", l: "Wayfarers" }
-    ],
-    hairColor: [
-        { v: "2c1b18", l: "Negro" }, { v: "4a312c", l: "Castaño Oscuro" }, { v: "724133", l: "Castaño" },
-        { v: "a55728", l: "Pelirrojo" }, { v: "b58143", l: "Rubio Oscuro" }, { v: "d6b370", l: "Rubio" },
-        { v: "ecdcbf", l: "Platino" }, { v: "f59797", l: "Rosa" }, { v: "e8e1e1", l: "Canoso" }
-    ],
-    facialHair: [
-        { v: "none", l: "Ninguno" }, { v: "beardLight", l: "Barba Corta" }, { v: "beardMajestic", l: "Barba Larga" },
-        { v: "beardMedium", l: "Barba Media" }, { v: "moustacheFancy", l: "Bigote Curvo" }, { v: "moustacheMagnum", l: "Bigote Magnum" }
-    ],
-    clothing: [
-        { v: "blazerAndShirt", l: "Americana y Camisa" }, { v: "blazerAndSweater", l: "Americana y Jersey" },
-        { v: "collarAndSweater", l: "Jersey con Cuello" }, { v: "graphicShirt", l: "Camiseta con Logo" },
-        { v: "hoodie", l: "Sudadera" }, { v: "overall", l: "Peto" }, { v: "shirtCrewNeck", l: "Camiseta Cuello Redondo" },
-        { v: "shirtVNeck", l: "Camiseta Cuello V" }
-    ],
-    clothesColor: [
-        { v: "262e33", l: "Negro" }, { v: "65c9ff", l: "Azul Cielo" }, { v: "5199e4", l: "Azul Real" },
-        { v: "25557c", l: "Azul Marino" }, { v: "e6e6e6", l: "Gris Claro" }, { v: "929598", l: "Gris" },
-        { v: "3c4f5c", l: "Gris Carbón" }, { v: "b1e2ff", l: "Azul Pastel" }, { v: "a7ffc4", l: "Verde Menta" },
-        { v: "ffde55", l: "Amarillo" }, { v: "ffafc9", l: "Rosa" }, { v: "ff5c5c", l: "Rojo" }, { v: "ffffff", l: "Blanco" }
-    ],
-    skinColor: [
-        { v: "614335", l: "Muy Oscuro" }, { v: "ae5d29", l: "Oscuro" }, { v: "d08b5b", l: "Bronceado" },
-        { v: "edb98a", l: "Trigueño" }, { v: "fd9841", l: "Moreno" }, { v: "f8d25c", l: "Amarillo" }, { v: "ffdbb4", l: "Pálido" }
-    ],
-    eyes: [
-        { v: "default", l: "Normal" }, { v: "closed", l: "Cerrados" }, { v: "cry", l: "Llorando" },
-        { v: "eyeRoll", l: "Ojos Arriba" }, { v: "happy", l: "Feliz" }, { v: "hearts", l: "Corazones" },
-        { v: "side", l: "Mirada Lateral" }, { v: "squint", l: "Entrecerrados" }, { v: "surprised", l: "Sorprendido" },
-        { v: "wink", l: "Guiño" }
-    ],
-    mouth: [
-        { v: "default", l: "Normal" }, { v: "concerned", l: "Preocupado" }, { v: "disbelief", l: "Incrédulo" },
-        { v: "eating", l: "Comiendo" }, { v: "grimace", l: "Mueca" }, { v: "sad", l: "Triste" },
-        { v: "screamOpen", l: "Gritando" }, { v: "serious", l: "Serio" }, { v: "smile", l: "Sonrisa" },
-        { v: "tongue", l: "Lengua fuera" }
-    ],
-    accessoriesColor: [
-        { v: "262e33", l: "Negro" }, { v: "65c9ff", l: "Azul Cielo" }, { v: "5199e4", l: "Azul Real" },
-        { v: "25557c", l: "Azul Marino" }, { v: "e6e6e6", l: "Gris Claro" }, { v: "929598", l: "Gris" },
-        { v: "3c4f5c", l: "Gris Carbón" }, { v: "b1e2ff", l: "Azul Pastel" }, { v: "a7ffc4", l: "Verde Menta" },
-        { v: "ffde55", l: "Amarillo" }, { v: "ffafc9", l: "Rosa" }, { v: "ff5c5c", l: "Rojo" }, { v: "ffffff", l: "Blanco" }
-    ],
-    facialHairColor: [
-        { v: "262e33", l: "Negro" }, { v: "4a312c", l: "Castaño Oscuro" }, { v: "724133", l: "Castaño" },
-        { v: "a55728", l: "Pelirrojo" }, { v: "b58143", l: "Rubio" }, { v: "c0a183", l: "Platino" },
-        { v: "e8e1e1", l: "Canoso" }
-    ],
-    eyebrows: [
-        { v: "default", l: "Normal" }, { v: "angry", l: "Enfadado" }, { v: "flatNatural", l: "Planas" },
-        { v: "raisedExcited", l: "Excitas" }, { v: "sadConcerned", l: "Triste" }, { v: "unibrowNatural", l: "Entrecejo" },
-        { v: "upDown", l: "Asimétricas" }
-    ]
-};
+// (Constantes movidas a modules/avatar.js)
 
 const avatarPreview = document.getElementById('avatar-preview');
 
@@ -1214,47 +1137,7 @@ const avatarSelects = {
     mouth: document.getElementById('avatar-mouth')
 };
 
-function initAvatarSelects() {
-    Object.keys(AVATAR_OPTIONS).forEach(key => {
-        const select = avatarSelects[key];
-        if (!select) return;
-        
-        select.innerHTML = AVATAR_OPTIONS[key].map(opt => 
-            `<option value="${opt.v}">${opt.l}</option>`
-        ).join('');
-        
-        select.addEventListener('change', updateAvatarPreview);
-    });
-}
-
-function updateAvatarPreview() {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const params = new URLSearchParams({
-        seed: user.uid
-    });
-    
-    // Forzar 100% de probabilidad por defecto para tipos específicos si se seleccionan
-    // O 0% si se elige "none"
-    Object.keys(avatarSelects).forEach(key => {
-        const val = avatarSelects[key].value;
-        if (val && val !== 'none') {
-            params.append(key, val);
-            if (key === 'accessories') params.set('accessoriesProbability', 100);
-            if (key === 'facialHair') params.set('facialHairProbability', 100);
-            if (key === 'top') params.set('topProbability', 100);
-        } else if (val === 'none') {
-            if (key === 'accessories') params.set('accessoriesProbability', 0);
-            if (key === 'facialHair') params.set('facialHairProbability', 0);
-            if (key === 'top') params.set('topProbability', 0);
-        }
-    });
-
-    const url = `https://api.dicebear.com/9.x/avataaars/svg?${params.toString()}`;
-    if (avatarPreview) avatarPreview.src = url;
-    return url;
-}
+// (Lógica de inicialización y preview movida a modules/avatar.js)
 
 openSettingsBtn.addEventListener('click', async () => {
     const user = auth.currentUser;
@@ -1276,7 +1159,7 @@ openSettingsBtn.addEventListener('click', async () => {
         }
     }
     
-    updateAvatarPreview();
+    updateAvatarPreview(avatarSelects, avatarPreview);
     settingsModal.classList.remove('hidden');
 });
 
@@ -1292,7 +1175,7 @@ saveSettingsBtn.addEventListener('click', async () => {
         avatarConfig[key] = avatarSelects[key].value;
     });
     
-    const avatarUrl = updateAvatarPreview();
+    const avatarUrl = updateAvatarPreview(avatarSelects, avatarPreview);
 
     try {
         await updateProfile(user, { displayName: newName });
@@ -1317,65 +1200,11 @@ saveSettingsBtn.addEventListener('click', async () => {
     }
 });
 
-initAvatarSelects();
+// Iniciar Sistemas Modulares
+initAvatarSelects(avatarSelects, () => updateAvatarPreview(avatarSelects, avatarPreview));
+initThemeSystem(themeDots, customColorInput);
 
 // --- Lógica de Pestañas del Modal de Ajustes ---
-const tabBtns = document.querySelectorAll('.settings-tab-btn');
-const tabContents = document.querySelectorAll('.settings-tab-content');
-
-tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const targetTab = btn.dataset.tab;
-        
-        // Reset buttons
-        tabBtns.forEach(b => {
-            b.classList.remove('active', 'bg-primary', 'text-white');
-            b.classList.add('text-slate-500', 'hover:text-white');
-        });
-        
-        // Active button
-        btn.classList.add('active', 'bg-primary', 'text-white');
-        btn.classList.remove('text-slate-500', 'hover:text-white');
-        
-        // Tab content
-        tabContents.forEach(content => content.classList.add('hidden'));
-        const targetContent = document.getElementById(`tab-${targetTab}`);
-        if (targetContent) targetContent.classList.remove('hidden');
-    });
-});
-
-themeDots.forEach(dot => {
-    dot.addEventListener('click', () => {
-        themeDots.forEach(d => d.classList.remove('active'));
-        dot.classList.add('active');
-        applyTheme(dot.dataset.theme);
-    });
-});
-
-customColorInput.addEventListener('input', (e) => {
-    applyTheme('custom', e.target.value);
-});
-
-async function applyTheme(themeName, customColor = null) {
-    document.body.setAttribute('data-theme', themeName);
-    localStorage.setItem('user-theme', themeName);
-
-    if (themeName === 'custom' && customColor) {
-        document.documentElement.style.setProperty('--primary', customColor);
-        document.documentElement.style.setProperty('--border', `${customColor}22`);
-        localStorage.setItem('custom-theme-color', customColor);
-    } else {
-        document.documentElement.style.removeProperty('--primary');
-        document.documentElement.style.removeProperty('--border');
-    }
-}
-
-// Cargar tema al iniciar
-window.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('user-theme') || 'midnight';
-    const savedColor = localStorage.getItem('custom-theme-color');
-    applyTheme(savedTheme, savedColor);
-});
 
 function showNotification(message, type = 'info') {
     const container = document.getElementById('toast-container');
