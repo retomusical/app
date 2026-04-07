@@ -51,6 +51,7 @@ const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userNameDisplay = document.getElementById('user-display-name');
 const userPinDisplay = document.getElementById('user-pin');
+const userSecretWordDisplay = document.getElementById('user-secret-word');
 const newPlaylistName = document.getElementById('new-playlist-name');
 const newPlaylistUrl = document.getElementById('new-playlist-url');
 const createPlaylistBtn = document.getElementById('create-playlist-btn');
@@ -165,30 +166,56 @@ async function handleUserAuthenticated(user) {
 
     if (userSnap.exists()) {
         const userData = userSnap.data();
-        userPinDisplay.textContent = userData.pin;
+        let pin = userData.pin;
+        let secretWord = userData.secretWord;
+
+        // Migración: Si no tiene palabra clave, generarla
+        if (!secretWord) {
+            secretWord = generateSecretWord();
+            await updateDoc(userRef, { secretWord: secretWord });
+        }
+
+        userPinDisplay.textContent = pin;
+        if (userSecretWordDisplay) userSecretWordDisplay.textContent = secretWord;
         userNameDisplay.textContent = userData.displayName || user.displayName;
         
         const avatarUrl = userData.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${user.uid}`;
         const mainAvatar = document.getElementById('main-user-avatar');
         if (mainAvatar) mainAvatar.src = avatarUrl;
     } else {
-        // New user: Generate Alexa PIN
+        // New user: Generate Alexa PIN and Secret Word
         const pin = await generateUniquePin();
+        const secretWord = generateSecretWord();
         const userData = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
             pin: pin,
+            secretWord: secretWord,
             createdAt: new Date().toISOString()
         };
         
         await setDoc(userRef, userData);
         await setDoc(doc(db, "pins", pin), { uid: user.uid });
+        
         userPinDisplay.textContent = pin;
+        if (userSecretWordDisplay) userSecretWordDisplay.textContent = secretWord;
     }
     
     await loadMyPlaylists();
     showSection('panel');
+}
+
+const ALEXA_WORDS = [
+    "MELON", "SANDIA", "GUITARRA", "PIANO", "RADIO", "DISCO", "CEBRA", "TIGRE", 
+    "LUNA", "SOL", "ESTRELLA", "NUBE", "PLAYA", "MONTE", "RIO", "MAR", 
+    "BARCO", "TREN", "FLOR", "ARBOL", "CASA", "LIBRO", "PULPO", "GATO", 
+    "PERRO", "AVION", "COCHE", "MESA", "SILLA", "RELOJ", "DADO", "LLAVE", 
+    "PUERTA", "VENTANA", "QUESO", "PAN", "LECHE", "MIEL", "LAGO", "BOSQUE"
+];
+
+function generateSecretWord() {
+    return ALEXA_WORDS[Math.floor(Math.random() * ALEXA_WORDS.length)];
 }
 
 async function generateUniqueLetterPin() {

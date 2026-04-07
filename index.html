@@ -60,21 +60,28 @@
                 <h2 class="text-2xl font-semibold">Bienvenido</h2>
             </div>
             <p class="text-slate-300 mb-8">Inicia sesión con tu cuenta de Google para comenzar a jugar y vincular con Alexa.</p>
-            <button id="login-btn" class="w-full flex items-center justify-center gap-3 bg-white text-dark font-bold py-4 px-6 rounded-2xl hover:bg-slate-100 transition-all active:scale-95">
+            <button id="login-btn" class="w-full flex items-center justify-center gap-3 bg-white text-dark font-bold py-4 px-6 rounded-2xl hover:bg-slate-100 transition-all active:scale-95 mb-8">
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" class="w-6 h-6">
                 Entrar con Google
             </button>
+
+            <!-- Alexa Info in Login -->
+            <div class="p-6 bg-primary/5 rounded-2xl border border-primary/10 text-center animate-pulse-slow">
+                <p class="text-[10px] font-black uppercase tracking-widest text-primary mb-2">¡Juega con tu voz!</p>
+                <p class="text-sm text-slate-300">Dile a tu altavoz:<br>
+                <span class="text-white font-black italic text-lg mt-1 block">"Alexa, abre Reto Musical"</span></p>
+            </div>
         </section>
 
         <!-- Section 2: User Panel -->
         <section id="panel-section" class="hidden w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-3xl shadow-2xl space-y-8 transform transition-all duration-500">
             <div class="flex justify-between items-center border-b border-white/10 pb-6">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 overflow-hidden">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-white/5 rounded-2xl border border-white/10 overflow-hidden shadow-xl">
                         <img id="main-user-avatar" src="https://api.dicebear.com/9.x/avataaars/svg" alt="Avatar" class="w-full h-full">
                     </div>
                     <div>
-                        <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-0.5">Tu <span class="text-primary">Panel</span></h2>
+                        <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-0.5"><span class="text-primary">Reto</span> Panel</h2>
                         <p class="text-slate-400 text-xs">Hola, <span id="user-display-name" class="text-white font-bold">Usuario</span></p>
                     </div>
                 </div>
@@ -82,16 +89,34 @@
                     <button id="open-settings-btn" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl border border-white/10 transition-all group">
                         <span class="text-xl group-hover:rotate-90 transition-transform inline-block">⚙️</span>
                     </button>
-                    <button id="logout-btn" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl border border-white/10 text-slate-400 hover:text-white transition-all text-xs">Salir</button>
+                    <button id="logout-btn" class="bg-white/5 hover:bg-white/10 p-4 rounded-2xl border border-white/10 text-slate-400 hover:text-white transition-all text-xs font-bold uppercase tracking-widest">Salir</button>
                 </div>
             </div>
 
-            <!-- PIN Displays -->
-            <div class="max-w-xs mx-auto mb-10">
-                <div class="bg-gradient-to-br from-primary/20 to-secondary/20 p-6 rounded-2xl border border-white/10 text-center relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <p class="text-slate-400 text-[10px] mb-2 uppercase tracking-[0.2em] font-bold">Pin Alexa (Voz)</p>
-                    <div id="user-pin" class="text-4xl font-black tracking-[0.3em] text-white tabular-nums drop-shadow-lg relative z-10 text-primary">----</div>
+            <!-- PIN & Secret Word - Alexa Linking -->
+            <div class="bg-black/40 rounded-3xl border border-white/5 p-8 relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4 opacity-10">
+                    <svg class="w-24 h-24 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                </div>
+                
+                <div class="text-center mb-6">
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-primary mb-2">Vinculación Alexa</p>
+                    <p class="text-slate-400 text-sm">Usa estos datos cuando Alexa te los pida</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 relative z-10">
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">PIN</p>
+                        <div id="user-pin" class="text-3xl font-black tracking-widest text-white tabular-nums">----</div>
+                    </div>
+                    <div class="bg-white/5 p-6 rounded-2xl border border-white/10 text-center">
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">Palabra Clave</p>
+                        <div id="user-secret-word" class="text-2xl font-black italic text-primary uppercase">----</div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-white/5 text-center">
+                    <p class="text-xs text-slate-300">Comando: <span class="bg-white/10 px-3 py-1 rounded-lg font-bold text-white italic">"Alexa, abre Reto Musical"</span></p>
                 </div>
             </div>
 
