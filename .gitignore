@@ -9,3 +9,4 @@ dist
 .DS_Store
 alexa/lambda/service-account.json
 alexa/.ask
+alexa/skill_deployment.zip
