@@ -1,7 +1,25 @@
 const Alexa = require('ask-sdk-core');
 const admin = require('firebase-admin');
-const levenshtein = require('levenshtein-edit-distance');
+// const levenshtein = require('levenshtein-edit-distance'); // Eliminado por incompatibilidad
 const axios = require('axios');
+
+// --- ALGORITMO DE LEVENSHTEIN LOCAL ---
+function levenshtein(a, b) {
+    if (!a || !b) return 100;
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
 
 // --- CONFIGURACIÓN FIREBASE ---
 // IMPORTANTE: Sustituye el contenido de 'serviceAccount' por el JSON de tu cuenta de servicio.
@@ -22,11 +40,22 @@ const LaunchRequestHandler = {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
     },
     handle(handlerInput) {
+        console.log("Iniciando LaunchRequest");
         const speakOutput = '¡Bienvenido a Reto Musical! Para empezar a jugar, dime tu PIN de cuatro dígitos.';
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt('Dime el PIN de tu lista para empezar.')
             .getResponse();
+    }
+};
+
+const SessionEndedRequestHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
+    },
+    handle(handlerInput) {
+        console.log(`~~~~ Session ended: ${JSON.stringify(handlerInput.requestEnvelope)}`);
+        return handlerInput.responseBuilder.getResponse();
     }
 };
 
@@ -264,7 +293,8 @@ exports.handler = Alexa.SkillBuilders.custom()
         HelpIntentHandler,
         RepeatIntentHandler,
         FallbackIntentHandler,
-        CancelAndStopIntentHandler
+        CancelAndStopIntentHandler,
+        SessionEndedRequestHandler
     )
     .addErrorHandlers(ErrorHandler)
     .lambda();
