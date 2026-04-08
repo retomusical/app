@@ -7,3 +7,5 @@ dist
 .env.production.local
 .vite
 .DS_Store
+alexa/lambda/service-account.json
+
