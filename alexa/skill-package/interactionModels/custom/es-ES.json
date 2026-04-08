@@ -1,0 +1,95 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "reto musical",
+      "intents": [
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "PinIntent",
+          "slots": [
+            {
+              "name": "pin",
+              "type": "AMAZON.FOUR_DIGIT_NUMBER"
+            }
+          ],
+          "samples": [
+            "mi pin es {pin}",
+            "el pin es {pin}",
+            "{pin}"
+          ]
+        },
+        {
+          "name": "SecretWordIntent",
+          "slots": [
+            {
+              "name": "secret_word",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "la palabra es {secret_word}",
+            "la palabra clave es {secret_word}",
+            "clave {secret_word}",
+            "{secret_word}"
+          ]
+        },
+        {
+          "name": "GameModeIntent",
+          "slots": [
+            {
+              "name": "mode",
+              "type": "LIST_OF_MODES"
+            }
+          ],
+          "samples": [
+            "quiero {mode}",
+            "modo {mode}",
+            "adivinar {mode}",
+            "{mode}"
+          ]
+        },
+        {
+          "name": "AnswerIntent",
+          "slots": [
+            {
+              "name": "answer",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "es {answer}",
+            "la respuesta es {answer}",
+            "creo que es {answer}",
+            "{answer}"
+          ]
+        }
+      ],
+      "types": [
+        {
+          "name": "LIST_OF_MODES",
+          "values": [
+            { "name": { "value": "canción" } },
+            { "name": { "value": "artista" } },
+            { "name": { "value": "cantante" } },
+            { "name": { "value": "pista" } }
+          ]
+        }
+      ]
+    }
+  }
+}

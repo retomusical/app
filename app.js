@@ -46,6 +46,26 @@ const logoutBtn = document.getElementById('logout-btn');
 const userNameDisplay = document.getElementById('user-display-name');
 const userPinDisplay = document.getElementById('user-pin');
 const userSecretWordDisplay = document.getElementById('user-secret-word');
+const togglePinBtn = document.getElementById('toggle-pin-btn');
+const toggleSecretBtn = document.getElementById('toggle-secret-btn');
+
+// Lógica de visibilidad (instantánea)
+function setupVisibilityToggle(btn, display) {
+    if (!btn || !display) return;
+    btn.addEventListener('click', () => {
+        const isBlurry = display.classList.contains('blur-md');
+        if (isBlurry) {
+            display.classList.remove('blur-md');
+            btn.querySelector('i').classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            display.classList.add('blur-md');
+            btn.querySelector('i').classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    });
+}
+
+setupVisibilityToggle(togglePinBtn, userPinDisplay);
+setupVisibilityToggle(toggleSecretBtn, userSecretWordDisplay);
 const newPlaylistName = document.getElementById('new-playlist-name');
 const newPlaylistUrl = document.getElementById('new-playlist-url');
 const createPlaylistBtn = document.getElementById('create-playlist-btn');

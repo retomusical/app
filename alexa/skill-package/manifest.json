@@ -1,0 +1,64 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "es-ES": {
+          "summary": "Juego de trivia musical personalizado.",
+          "examplePhrases": [
+            "Alexa, abre Reto Musical",
+            "Mi PIN es uno dos tres cuatro",
+            "La respuesta es Despacito"
+          ],
+          "name": "Reto Musical",
+          "description": "Adivina canciones y artistas de tus propias listas de reproducción configuradas en la web.",
+          "largeIconUri": "https://api.dicebear.com/9.x/avataaars/svg?seed=logo_512",
+          "smallIconUri": "https://api.dicebear.com/9.x/avataaars/svg?seed=logo_108"
+        }
+      },
+      "isAvailableInCountriesByDefault": true,
+      "isAvailableInCountries": [],
+      "testingInstructions": "Pedir el PIN al inicio y luego la palabra secreta.",
+      "category": "GAMES",
+      "distributionCountries": []
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "hosted"
+        },
+        "interfaces": [],
+        "regions": {
+          "EU": {
+            "endpoint": {
+              "uri": "hosted"
+            }
+          },
+          "NA": {
+            "endpoint": {
+              "uri": "hosted"
+            }
+          },
+          "FE": {
+            "endpoint": {
+              "uri": "hosted"
+            }
+          }
+        }
+      }
+    },
+    "manifestVersion": "1.0",
+    "privacyAndCompliance": {
+      "allowsBrowsing": false,
+      "locales": {
+        "es-ES": {
+          "privacyPolicyUrl": "https://example.com/privacy",
+          "termsOfUseUrl": "https://example.com/terms"
+        }
+      },
+      "isExportCompliant": true,
+      "isChildDirected": false,
+      "usesPersonalInfo": false,
+      "containsAds": false
+    }
+  }
+}
