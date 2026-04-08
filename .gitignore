@@ -10,3 +10,4 @@ dist
 alexa/lambda/service-account.json
 alexa/.ask
 alexa/skill_deployment.zip
+alexa/skill_deployment_v*.zip
