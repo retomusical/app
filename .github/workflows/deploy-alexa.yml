@@ -66,10 +66,12 @@ jobs:
           git config --global user.email "deploy@github-actions.com"
           git config --global user.name "GitHub Actions"
           
-          # Formatear la URL con credenciales
-          # La URL suele ser https://git-codecommit...
-          # La convertimos a https://username:password@git-codecommit...
-          AUTH_URL=$(echo $ALEXA_GIT_URL | sed "s/https:\/\//https:\/\/$ALEXA_GIT_USERNAME:$ALEXA_GIT_PASSWORD@/")
+          # URL-encode credentials to handle special characters (@, :, /, newlines, etc.)
+          ENCODED_USER=$(printf "%s" "$ALEXA_GIT_USERNAME" | jq -sRr @uri)
+          ENCODED_PASS=$(printf "%s" "$ALEXA_GIT_PASSWORD" | jq -sRr @uri)
+          
+          # Formatear la URL con credenciales de forma robusta
+          AUTH_URL="https://${ENCODED_USER}:${ENCODED_PASS}@${ALEXA_GIT_URL#https://}"
           
           # Añadir el remoto de Alexa y empujar la rama main a su rama master
           git remote add alexa-hosted "$AUTH_URL"
