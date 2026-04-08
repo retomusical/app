@@ -67,18 +67,18 @@ const PinIntentHandler = {
     async handle(handlerInput) {
         let pin = Alexa.getSlotValue(handlerInput.requestEnvelope, 'pin');
         
-        // Limpiar el PIN de posibles espacios (Alexa a veces entiende "1 2 3 4")
+        console.log("PIN recibido de Alexa:", pin);
         if (pin) pin = pin.replace(/\s/g, '');
+        console.log("PIN procesado:", pin);
 
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
         try {
-            console.log(`Buscando PIN de usuario: ${pin}`);
-            
-            // 1. Buscar el mapeo del PIN al UID del usuario
+            console.log(`Buscando en colección 'pins' el documento: ${pin}`);
             const pinDoc = await db.collection('pins').doc(pin).get();
             
             if (!pinDoc.exists) {
+                console.log(`PIN ${pin} no encontrado en la colección 'pins'`);
                 return handlerInput.responseBuilder
                     .speak(`No he encontrado ningún usuario con el PIN ${pin}. Asegúrate de que es el código de 4 dígitos de tu perfil.`)
                     .reprompt('Dime un PIN válido.')
@@ -86,29 +86,41 @@ const PinIntentHandler = {
             }
 
             const uid = pinDoc.data().uid;
+            console.log(`UID encontrado para el PIN: ${uid}`);
             
-            // 2. Obtener datos del usuario (especialmente la palabra clave)
+            if (!uid) {
+                console.error("El documento del PIN existe pero no tiene campo 'uid'");
+                throw new Error("UID missing in pin doc");
+            }
+
+            // 2. Obtener datos del usuario
+            console.log(`Buscando en colección 'users' el documento: ${uid}`);
             const userDoc = await db.collection('users').doc(uid).get();
             if (!userDoc.exists) {
+                 console.log(`Usuario ${uid} no encontrado en la colección 'users'`);
                  return handlerInput.responseBuilder
                     .speak('He encontrado el PIN pero no tu perfil de usuario. Contacta con soporte.')
                     .getResponse();
             }
             const userData = userDoc.data();
+            console.log("Datos de usuario recuperados:", userData.displayName);
 
             // 3. Buscar la primera playlist de este usuario
+            console.log(`Buscando playlists para ownerUid: ${uid}`);
             const playlistsQuery = await db.collection('playlists')
                 .where('ownerUid', '==', uid)
                 .limit(1)
                 .get();
             
             if (playlistsQuery.empty) {
+                console.log(`No se encontraron playlists para el usuario ${uid}`);
                 return handlerInput.responseBuilder
                     .speak(`Hola ${userData.displayName || ''}. He encontrado tu perfil, pero no tienes ninguna lista creada. Crea una en la web para jugar.`)
                     .getResponse();
             }
 
             const playlistData = playlistsQuery.docs[0].data();
+            console.log(`Playlist cargada: ${playlistData.title}`);
 
             sessionAttributes.pendingPlaylist = {
                 pin: pin,
@@ -126,9 +138,10 @@ const PinIntentHandler = {
                 .getResponse();
 
         } catch (error) {
-            console.error("Error en PinIntentHandler:", error);
+            console.error("ERROR DETALLADO en PinIntentHandler:", error);
+            // Mensaje más específico para el desarrollador en logs
             return handlerInput.responseBuilder
-                .speak('Lo siento, ha habido un problema al conectar con la base de datos.')
+                .speak('Lo siento, ha habido un problema al conectar con la base de datos de Firebase. Revisa los logs de CloudWatch.')
                 .getResponse();
         }
     }
