@@ -21,9 +21,6 @@
     },
     "apis": {
       "custom": {
-        "endpoint": {
-          "uri": "hosted"
-        },
         "interfaces": []
       }
     },
