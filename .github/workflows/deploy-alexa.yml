@@ -49,6 +49,5 @@ jobs:
       - name: Deploy Alexa Skill
         run: |
           cd alexa
-          # For Alexa-hosted skills, we deploy metadata and code separately
-          ask deploy --target skill-metadata --force
-          ask deploy --target lambda --force
+          # For Alexa-hosted skills, ask deploy handles both metadata and code push
+          ask deploy --ignore-hash
