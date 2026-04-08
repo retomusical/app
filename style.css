@@ -184,6 +184,21 @@ button:active {
     border-color: var(--text);
 }
 
+/* Settings Tabs */
+.settings-tab-btn {
+    border: 1px solid transparent;
+}
+
+.settings-tab-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-tab-btn.active {
+    background-color: var(--primary) !important;
+    color: var(--bg) !important;
+    box-shadow: 0 4px 15px -5px var(--primary);
+}
+
 /* Custom Text helper */
 .text-muted {
     color: var(--text-muted);

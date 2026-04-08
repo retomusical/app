@@ -2,7 +2,7 @@
   "askcliResourcesVersion": "2.0",
   "profiles": {
     "default": {
-      "skillId": "amzn1.ask.skill.84e6f936-5561-4892-8560-24bdcc8c781f",
+      "skillId": "amzn1.ask.skill.0d14a83a-dd93-451a-980e-9f238b8ef536",
       "skillMetadata": {
         "src": "./skill-package"
       },

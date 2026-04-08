@@ -66,6 +66,35 @@ function setupVisibilityToggle(btn, display) {
 
 setupVisibilityToggle(togglePinBtn, userPinDisplay);
 setupVisibilityToggle(toggleSecretBtn, userSecretWordDisplay);
+
+// Lógica para cambiar la palabra clave
+const refreshSecretBtn = document.getElementById('refresh-secret-btn');
+if (refreshSecretBtn) {
+    refreshSecretBtn.addEventListener('click', async () => {
+        if (!currentUser) return;
+        
+        const confirmChange = confirm("¿Estás seguro de que quieres cambiar tu palabra clave? Tendrás que decírsela a Alexa la próxima vez que entres.");
+        if (!confirmChange) return;
+
+        try {
+            const newSecretWord = generateSecretWord();
+            await updateDoc(doc(db, "users", currentUser.uid), {
+                secretWord: newSecretWord
+            });
+            
+            userSecretWordDisplay.textContent = newSecretWord;
+            showNotification("Palabra clave actualizada", "success");
+            
+            // Si estaba oculta, la mostramos para que el usuario vea la nueva
+            userSecretWordDisplay.classList.remove('blur-md');
+            toggleSecretBtn.querySelector('i').classList.replace('fa-eye', 'fa-eye-slash');
+            
+        } catch (error) {
+            console.error("Error al refrescar la palabra clave:", error);
+            showNotification("Error al actualizar la palabra clave", "error");
+        }
+    });
+}
 const newPlaylistName = document.getElementById('new-playlist-name');
 const newPlaylistUrl = document.getElementById('new-playlist-url');
 const createPlaylistBtn = document.getElementById('create-playlist-btn');
@@ -1225,7 +1254,27 @@ initAvatarSelects(avatarSelects, () => updateAvatarPreview(avatarSelects, avatar
 initThemeSystem(themeDots, customColorInput);
 
 // --- Lógica de Pestañas del Modal de Ajustes ---
+document.querySelectorAll('.settings-tab-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        const tabName = button.getAttribute('data-tab');
+        
+        // 1. Actualizar botones
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.classList.remove('active', 'text-white', 'bg-primary');
+            btn.classList.add('text-slate-500');
+        });
+        button.classList.add('active', 'text-white', 'bg-primary');
+        button.classList.remove('text-slate-500');
 
+        // 2. Mostrar/Ocultar contenido
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+        
+        console.log(`Cambiado a pestaña: ${tabName}`);
+    });
+});
 function showNotification(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');

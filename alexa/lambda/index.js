@@ -65,42 +65,68 @@ const PinIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'PinIntent';
     },
     async handle(handlerInput) {
-        const pin = Alexa.getSlotValue(handlerInput.requestEnvelope, 'pin');
+        let pin = Alexa.getSlotValue(handlerInput.requestEnvelope, 'pin');
+        
+        // Limpiar el PIN de posibles espacios (Alexa a veces entiende "1 2 3 4")
+        if (pin) pin = pin.replace(/\s/g, '');
+
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
         try {
-            const playlistDoc = await db.collection('playlists').doc(pin.toUpperCase()).get();
+            console.log(`Buscando PIN de usuario: ${pin}`);
             
-            if (!playlistDoc.exists) {
+            // 1. Buscar el mapeo del PIN al UID del usuario
+            const pinDoc = await db.collection('pins').doc(pin).get();
+            
+            if (!pinDoc.exists) {
                 return handlerInput.responseBuilder
-                    .speak(`No he encontrado ninguna lista con el PIN ${pin}. Inténtalo de nuevo.`)
+                    .speak(`No he encontrado ningún usuario con el PIN ${pin}. Asegúrate de que es el código de 4 dígitos de tu perfil.`)
                     .reprompt('Dime un PIN válido.')
                     .getResponse();
             }
 
-            const playlistData = playlistDoc.data();
-            const ownerUid = playlistData.ownerUid;
+            const uid = pinDoc.data().uid;
             
-            // Buscamos al dueño para validar la palabra secreta (2FA)
-            const userDoc = await db.collection('users').doc(ownerUid).get();
+            // 2. Obtener datos del usuario (especialmente la palabra clave)
+            const userDoc = await db.collection('users').doc(uid).get();
+            if (!userDoc.exists) {
+                 return handlerInput.responseBuilder
+                    .speak('He encontrado el PIN pero no tu perfil de usuario. Contacta con soporte.')
+                    .getResponse();
+            }
             const userData = userDoc.data();
 
+            // 3. Buscar la primera playlist de este usuario
+            const playlistsQuery = await db.collection('playlists')
+                .where('ownerUid', '==', uid)
+                .limit(1)
+                .get();
+            
+            if (playlistsQuery.empty) {
+                return handlerInput.responseBuilder
+                    .speak(`Hola ${userData.displayName || ''}. He encontrado tu perfil, pero no tienes ninguna lista creada. Crea una en la web para jugar.`)
+                    .getResponse();
+            }
+
+            const playlistData = playlistsQuery.docs[0].data();
+
             sessionAttributes.pendingPlaylist = {
-                pin: pin.toUpperCase(),
+                pin: pin,
                 url: playlistData.url,
                 title: playlistData.title,
-                secretWord: userData.secretWord.toLowerCase()
+                secretWord: (userData.secretWord || "").toLowerCase(),
+                displayName: userData.displayName
             };
 
             handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
             return handlerInput.responseBuilder
-                .speak(`He cargado la lista "${playlistData.title}". Por seguridad, dime ahora la palabra clave de acceso.`)
+                .speak(`Hola ${userData.displayName || ''}. He cargado tu lista "${playlistData.title}". Por seguridad, dime ahora tu palabra clave de acceso.`)
                 .reprompt('Dime la palabra clave que aparece en tu perfil web.')
                 .getResponse();
 
         } catch (error) {
-            console.error(error);
+            console.error("Error en PinIntentHandler:", error);
             return handlerInput.responseBuilder
                 .speak('Lo siento, ha habido un problema al conectar con la base de datos.')
                 .getResponse();
