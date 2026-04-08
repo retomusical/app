@@ -38,7 +38,7 @@ jobs:
                   "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}",
                   "token_type": "bearer",
                   "expires_in": 3600,
-                  "expires_at": "2026-04-08T00:00:00.000Z"
+                  "expires_at": "2030-01-01T00:00:00.000Z"
                 },
                 "vendor_id": "${{ secrets.ASK_VENDOR_ID }}"
               }
