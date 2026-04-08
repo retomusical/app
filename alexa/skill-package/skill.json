@@ -11,44 +11,21 @@
           ],
           "name": "Reto Musical",
           "description": "Adivina canciones y artistas de tus propias listas de reproducción configuradas en la web.",
-          "largeIconUri": "https://api.dicebear.com/9.x/avataaars/svg?seed=logo_512",
-          "smallIconUri": "https://api.dicebear.com/9.x/avataaars/svg?seed=logo_108"
+          "largeIconUri": "assets/icon_512.png",
+          "smallIconUri": "assets/icon_108.png"
         }
       },
-      "isAvailableInCountriesByDefault": true,
-      "isAvailableInCountries": [],
       "testingInstructions": "Pedir el PIN al inicio y luego la palabra secreta.",
       "category": "GAMES",
       "distributionCountries": []
     },
     "apis": {
       "custom": {
-        "endpoint": {
-          "uri": "hosted"
-        },
-        "interfaces": [],
-        "regions": {
-          "EU": {
-            "endpoint": {
-              "uri": "hosted"
-            }
-          },
-          "NA": {
-            "endpoint": {
-              "uri": "hosted"
-            }
-          },
-          "FE": {
-            "endpoint": {
-              "uri": "hosted"
-            }
-          }
-        }
+        "interfaces": []
       }
     },
     "manifestVersion": "1.0",
     "privacyAndCompliance": {
-      "allowsBrowsing": false,
       "locales": {
         "es-ES": {
           "privacyPolicyUrl": "https://example.com/privacy",
