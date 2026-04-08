@@ -1,0 +1,16 @@
+{
+  "name": "reto-musical-alexa",
+  "version": "1.0.0",
+  "description": "Alexa Skill para el juego Reto Musical",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-model": "^1.64.0",
+    "firebase-admin": "^11.5.0",
+    "levenshtein-edit-distance": "^3.0.0",
+    "axios": "^1.3.4"
+  }
+}

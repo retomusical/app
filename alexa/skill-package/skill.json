@@ -11,8 +11,8 @@
           ],
           "name": "Reto Musical",
           "description": "Adivina canciones y artistas de tus propias listas de reproducción configuradas en la web.",
-          "largeIconUri": "assets/icon_512.png",
-          "smallIconUri": "assets/icon_108.png"
+          "largeIconUri": "https://raw.githubusercontent.com/retomusical/app/main/public/icon_512.png",
+          "smallIconUri": "https://raw.githubusercontent.com/retomusical/app/main/public/icon_108.png"
         }
       },
       "testingInstructions": "Pedir el PIN al inicio y luego la palabra secreta.",

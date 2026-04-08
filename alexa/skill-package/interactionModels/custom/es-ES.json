@@ -5,19 +5,70 @@
       "intents": [
         {
           "name": "AMAZON.CancelIntent",
-          "samples": []
+          "samples": [
+            "cancelar",
+            "parar el juego",
+            "no quiero jugar más",
+            "salir"
+          ]
         },
         {
           "name": "AMAZON.HelpIntent",
-          "samples": []
+          "samples": [
+            "ayuda",
+            "qué tengo que hacer",
+            "cómo se juega",
+            "no entiendo",
+            "qué pasa"
+          ]
         },
         {
           "name": "AMAZON.StopIntent",
-          "samples": []
+          "samples": [
+            "stop",
+            "detente",
+            "terminar",
+            "pausa"
+          ]
         },
         {
           "name": "AMAZON.NavigateHomeIntent",
           "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.YesIntent",
+          "samples": [
+            "sí",
+            "claro",
+            "vale",
+            "venga",
+            "adelante",
+            "por supuesto"
+          ]
+        },
+        {
+          "name": "AMAZON.NoIntent",
+          "samples": [
+            "no",
+            "ahora no",
+            "negativo",
+            "para nada"
+          ]
+        },
+        {
+          "name": "AMAZON.RepeatIntent",
+          "samples": [
+            "repite",
+            "otra vez",
+            "vuelve a ponerlo",
+            "cómo",
+            "no te he oído",
+            "puedes repetir"
+          ]
         },
         {
           "name": "PinIntent",
@@ -30,6 +81,10 @@
           "samples": [
             "mi pin es {pin}",
             "el pin es {pin}",
+            "accedo con el pin {pin}",
+            "código {pin}",
+            "usa el pin {pin}",
+            "mi clave es {pin}",
             "{pin}"
           ]
         },
@@ -44,8 +99,10 @@
           "samples": [
             "la palabra es {secret_word}",
             "la palabra clave es {secret_word}",
+            "mi palabra secreta es {secret_word}",
             "clave {secret_word}",
-            "{secret_word}"
+            "es {secret_word}",
+            "la clave es {secret_word}"
           ]
         },
         {
@@ -60,6 +117,10 @@
             "quiero {mode}",
             "modo {mode}",
             "adivinar {mode}",
+            "poner modo {mode}",
+            "elegir {mode}",
+            "prefiero {mode}",
+            "jugar con {mode}",
             "{mode}"
           ]
         },
@@ -75,7 +136,15 @@
             "es {answer}",
             "la respuesta es {answer}",
             "creo que es {answer}",
-            "{answer}"
+            "se llama {answer}",
+            "me suena a {answer}",
+            "diría que es {answer}",
+            "el nombre es {answer}",
+            "la canción es {answer}",
+            "el artista es {answer}",
+            "pongo {answer}",
+            "será {answer}",
+            "apuesto por {answer}"
           ]
         }
       ],
@@ -83,10 +152,31 @@
         {
           "name": "LIST_OF_MODES",
           "values": [
-            { "name": { "value": "canción" } },
-            { "name": { "value": "artista" } },
-            { "name": { "value": "cantante" } },
-            { "name": { "value": "pista" } }
+            {
+              "id": "CANCION",
+              "name": {
+                "value": "canción",
+                "synonyms": [
+                  "título",
+                  "el nombre de la canción",
+                  "el tema",
+                  "la pista"
+                ]
+              }
+            },
+            {
+              "id": "ARTISTA",
+              "name": {
+                "value": "artista",
+                "synonyms": [
+                  "cantante",
+                  "el autor",
+                  "el grupo",
+                  "la banda",
+                  "quién canta"
+                ]
+              }
+            }
           ]
         }
       ]

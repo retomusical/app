@@ -212,6 +212,37 @@ const CancelAndStopIntentHandler = {
     }
 };
 
+const RepeatIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.RepeatIntent';
+    },
+    handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (sessionAttributes.tracks && sessionAttributes.tracks[sessionAttributes.currentRound]) {
+            return startNextRound(handlerInput);
+        }
+        return handlerInput.responseBuilder
+            .speak('No tengo nada que repetir. ¿Cuál es el PIN de tu lista?')
+            .reprompt('Dime tu PIN para empezar.')
+            .getResponse();
+    }
+};
+
+const FallbackIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.FallbackIntent';
+    },
+    handle(handlerInput) {
+        const speakOutput = 'Lo siento, no sé como ayudarte con eso. Intenta decir ayuda para más opciones.';
+        return handlerInput.responseBuilder
+            .speak(speakOutput)
+            .reprompt(speakOutput)
+            .getResponse();
+    }
+};
+
 const ErrorHandler = {
     canHandle() { return true; },
     handle(handlerInput, error) {
@@ -231,6 +262,8 @@ exports.handler = Alexa.SkillBuilders.custom()
         GameModeIntentHandler,
         AnswerIntentHandler,
         HelpIntentHandler,
+        RepeatIntentHandler,
+        FallbackIntentHandler,
         CancelAndStopIntentHandler
     )
     .addErrorHandlers(ErrorHandler)

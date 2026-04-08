@@ -4,9 +4,11 @@
     "default": {
       "deploymentStatus": "COMPLETE",
       "skillMetadata": {
-        "lastImportId": "amzn1.ask-package.import.2ab9ea5d-49d1-4fd3-97e2-f0ed965dad41",
-        "lastImportTimestamp": "2026-04-08T04:39:02.301Z"
-      }
+        "lastImportId": "amzn1.ask-package.import.05e3d075-f3e8-4209-a159-b035c39b1e15",
+        "lastImportTimestamp": "2026-04-08T04:42:47.278Z",
+        "lastDeployHash": "HXS2rB1Fe88j5fjeueeb0+5UlUc="
+      },
+      "skillId": "amzn1.ask.skill.15702790-3254-44c0-86d7-7526663f3b10"
     }
   }
 }
