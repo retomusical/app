@@ -79,4 +79,5 @@ jobs:
           # Empujar solo la subcarpeta alexa (o el repo entero si la estructura es compatible)
           # En Alexa-hosted, el repo espera que la raíz sea el contenido de la carpeta 'alexa'
           # Usamos subtree push para enviar solo esa carpeta
-          git subtree push --prefix alexa alexa-hosted master --force
+          # Para forzar el despliegue de un subtree, primero lo dividimos y luego lo empujamos con fuerza
+          git push alexa-hosted $(git subtree split --prefix alexa main):master --force
