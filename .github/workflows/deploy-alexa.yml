@@ -1,0 +1,54 @@
+name: Deploy Alexa Skill
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'alexa/**'
+      - '.github/workflows/deploy-alexa.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install ASK CLI
+        run: npm install -g ask-cli
+
+      - name: Create Service Account File
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > alexa/lambda/service-account.json
+
+      - name: Configure ASK CLI
+        run: |
+          mkdir -p ~/.ask
+          cat <<EOF > ~/.ask/cli_config
+          {
+            "profiles": {
+              "default": {
+                "token": {
+                  "access_token": "${{ secrets.ASK_ACCESS_TOKEN }}",
+                  "refresh_token": "${{ secrets.ASK_REFRESH_TOKEN }}",
+                  "token_type": "bearer",
+                  "expires_in": 3600,
+                  "expires_at": "2026-04-08T00:00:00.000Z"
+                },
+                "vendor_id": "${{ secrets.ASK_VENDOR_ID }}"
+              }
+            }
+          }
+          EOF
+
+      - name: Deploy Alexa Skill
+        run: |
+          cd alexa
+          # For Alexa-hosted skills, we deploy metadata and code separately
+          ask deploy --target skill-metadata --force
+          ask deploy --target lambda --force
