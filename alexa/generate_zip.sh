@@ -44,18 +44,13 @@ fi
 
 NEW_ZIP="${BASE_ZIP_NAME}_v${VERSION}.zip"
 
-# 3. Prepare dependencies
-echo "📦 Installing production dependencies in $LAMBDA_DIR..."
-cd "$LAMBDA_DIR"
-npm install --production
-
-# 4. Create the new zip file
+# 3. Create the new zip file
 echo "🤐 Creating $NEW_ZIP..."
-# Zip everything inside the lambda folder
-zip -q -r "../$NEW_ZIP" .
+# Go back to the script directory to zip the lambda folder itself but EXCLUDE node_modules
+cd "$SCRIPT_DIR"
+zip -q -r "$NEW_ZIP" "$LAMBDA_DIR" -x "$LAMBDA_DIR/node_modules/*"
 
-# 5. Cleanup OLD version if specified
-cd ..
+# 4. Cleanup OLD version if specified
 if [ -n "$OLD_ZIP" ] && [ -f "$OLD_ZIP" ]; then
     echo "🗑️ Removing previous version: $OLD_ZIP"
     rm "$OLD_ZIP"

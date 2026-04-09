@@ -93,7 +93,7 @@
           "slots": [
             {
               "name": "secret_word",
-              "type": "AMAZON.SearchQuery"
+              "type": "CATCH_ALL_WORD"
             }
           ],
           "samples": [
@@ -150,6 +150,21 @@
         }
       ],
       "types": [
+        {
+          "name": "CATCH_ALL_WORD",
+          "values": [
+            { "name": { "value": "coche" } },
+            { "name": { "value": "perro" } },
+            { "name": { "value": "gato" } },
+            { "name": { "value": "casa" } },
+            { "name": { "value": "sol" } },
+            { "name": { "value": "luna" } },
+            { "name": { "value": "mesa" } },
+            { "name": { "value": "árbol" } },
+            { "name": { "value": "agua" } },
+            { "name": { "value": "libro" } }
+          ]
+        },
         {
           "name": "LIST_OF_MODES",
           "values": [

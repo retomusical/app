@@ -191,17 +191,49 @@ const GameModeIntentHandler = {
         
         // Cargar tracks desde la URL de la playlist
         try {
-            const response = await axios.get(sessionAttributes.currentPlaylist.url);
-            sessionAttributes.tracks = response.data.tracks || [];
+            let apiUrl = sessionAttributes.currentPlaylist.url;
             
+            // Si es una URL web de Deezer, extraer el ID y convertir a URL de API
+            const deezerMatch = apiUrl.match(/playlist\/(\d+)/);
+            if (deezerMatch) {
+                apiUrl = `https://api.deezer.com/playlist/${deezerMatch[1]}`;
+            }
+
+            console.log(`Pidiendo canciones a: ${apiUrl}`);
+            const response = await axios.get(apiUrl);
+            
+            let trackList = [];
+            if (response.data && response.data.tracks && response.data.tracks.data) {
+                // Formato Deezer API
+                trackList = response.data.tracks.data;
+            } else if (response.data && Array.isArray(response.data)) {
+                // Formato genérico
+                trackList = response.data;
+            } else if (response.data && response.data.tracks && Array.isArray(response.data.tracks)) {
+                // Formato heredado
+                trackList = response.data.tracks;
+            }
+
+            // Mapear al formato que espera el juego y filtrar los que no tienen preview de audio
+            sessionAttributes.tracks = trackList.map(t => ({
+                title: t.title,
+                artist: t.artist ? (t.artist.name || t.artist) : 'Desconocido',
+                preview: t.preview
+            })).filter(t => t.preview);
+            
+            if (sessionAttributes.tracks.length === 0) {
+                throw new Error("No se encontraron canciones con preview de audio en la lista.");
+            }
+
             // Barajar
             sessionAttributes.tracks.sort(() => Math.random() - 0.5);
             handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
             return startNextRound(handlerInput);
         } catch (e) {
+            console.error(`Error cargando playlist: ${e.message}`);
             return handlerInput.responseBuilder
-                .speak('No he podido cargar las canciones de esta lista.')
+                .speak('No he podido cargar las canciones de esta lista. Asegúrate de que la URL sea válida o que la lista en Deezer sea pública.')
                 .getResponse();
         }
     }
