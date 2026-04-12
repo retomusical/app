@@ -1,6 +1,5 @@
 const Alexa = require('ask-sdk-core');
 const admin = require('firebase-admin');
-// const levenshtein = require('levenshtein-edit-distance'); // Eliminado por incompatibilidad
 const axios = require('axios');
 
 // --- ALGORITMO DE LEVENSHTEIN LOCAL ---
@@ -22,7 +21,6 @@ function levenshtein(a, b) {
 }
 
 // --- CONFIGURACIÓN FIREBASE ---
-// IMPORTANTE: Sustituye el contenido de 'serviceAccount' por el JSON de tu cuenta de servicio.
 const serviceAccount = require("./service-account.json");
 
 if (!admin.apps.length) {
@@ -35,6 +33,8 @@ const db = admin.firestore();
 // --- LÓGICA DE JUEGO ---
 const GAME_ROUNDS = 10;
 
+const HELP_MESSAGE = 'Estas son tus opciones: 1. Listar las listas que tengo. 2. Añadir una lista de un amigo diciendo el pin. 3. Escoger una lista. 4. Jugar. 5. Pedir ayuda. Y 6. Salir. ¿Qué te gustaría hacer?';
+
 const LaunchRequestHandler = {
     canHandle(handlerInput) {
         return Alexa.getRequestType(handlerInput.requestEnvelope) === 'LaunchRequest';
@@ -44,18 +44,8 @@ const LaunchRequestHandler = {
         const speakOutput = '¡Bienvenido a Reto Musical! Para empezar a jugar, dime tu PIN de cuatro dígitos.';
         return handlerInput.responseBuilder
             .speak(speakOutput)
-            .reprompt('Dime el PIN de tu lista para empezar.')
+            .reprompt('Dime el PIN de tu perfil para empezar.')
             .getResponse();
-    }
-};
-
-const SessionEndedRequestHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
-    },
-    handle(handlerInput) {
-        console.log(`~~~~ Session ended: ${JSON.stringify(handlerInput.requestEnvelope)}`);
-        return handlerInput.responseBuilder.getResponse();
     }
 };
 
@@ -65,20 +55,23 @@ const PinIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'PinIntent';
     },
     async handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder
+                .speak('Ya estás identificado. Puedes decir ayuda para escuchar el menú de opciones.')
+                .reprompt(HELP_MESSAGE)
+                .getResponse();
+        }
+
         let pin = Alexa.getSlotValue(handlerInput.requestEnvelope, 'pin');
         
         console.log("PIN recibido de Alexa:", pin);
         if (pin) pin = pin.replace(/\s/g, '');
-        console.log("PIN procesado:", pin);
-
-        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
 
         try {
-            console.log(`Buscando en colección 'pins' el documento: ${pin}`);
             const pinDoc = await db.collection('pins').doc(pin).get();
             
             if (!pinDoc.exists) {
-                console.log(`PIN ${pin} no encontrado en la colección 'pins'`);
                 return handlerInput.responseBuilder
                     .speak(`No he encontrado ningún usuario con el PIN ${pin}. Asegúrate de que es el código de 4 dígitos de tu perfil.`)
                     .reprompt('Dime un PIN válido.')
@@ -86,46 +79,21 @@ const PinIntentHandler = {
             }
 
             const uid = pinDoc.data().uid;
-            console.log(`UID encontrado para el PIN: ${uid}`);
             
             if (!uid) {
-                console.error("El documento del PIN existe pero no tiene campo 'uid'");
                 throw new Error("UID missing in pin doc");
             }
 
-            // 2. Obtener datos del usuario
-            console.log(`Buscando en colección 'users' el documento: ${uid}`);
             const userDoc = await db.collection('users').doc(uid).get();
             if (!userDoc.exists) {
-                 console.log(`Usuario ${uid} no encontrado en la colección 'users'`);
                  return handlerInput.responseBuilder
                     .speak('He encontrado el PIN pero no tu perfil de usuario. Contacta con soporte.')
                     .getResponse();
             }
             const userData = userDoc.data();
-            console.log("Datos de usuario recuperados:", userData.displayName);
 
-            // 3. Buscar la primera playlist de este usuario
-            console.log(`Buscando playlists para ownerUid: ${uid}`);
-            const playlistsQuery = await db.collection('playlists')
-                .where('ownerUid', '==', uid)
-                .limit(1)
-                .get();
-            
-            if (playlistsQuery.empty) {
-                console.log(`No se encontraron playlists para el usuario ${uid}`);
-                return handlerInput.responseBuilder
-                    .speak(`Hola ${userData.displayName || ''}. He encontrado tu perfil, pero no tienes ninguna lista creada. Crea una en la web para jugar.`)
-                    .getResponse();
-            }
-
-            const playlistData = playlistsQuery.docs[0].data();
-            console.log(`Playlist cargada: ${playlistData.title}`);
-
-            sessionAttributes.pendingPlaylist = {
-                pin: pin,
-                url: playlistData.url,
-                title: playlistData.title,
+            sessionAttributes.pendingUser = {
+                uid: uid,
                 secretWord: (userData.secretWord || "").toLowerCase(),
                 displayName: userData.displayName
             };
@@ -133,13 +101,12 @@ const PinIntentHandler = {
             handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
             return handlerInput.responseBuilder
-                .speak(`Hola ${userData.displayName || ''}. He cargado tu lista "${playlistData.title}". Por seguridad, dime ahora tu palabra clave de acceso.`)
+                .speak(`Hola ${userData.displayName || ''}. Por seguridad, dime ahora tu palabra clave de acceso.`)
                 .reprompt('Dime la palabra clave que aparece en tu perfil web.')
                 .getResponse();
 
         } catch (error) {
             console.error("ERROR DETALLADO en PinIntentHandler:", error);
-            // Mensaje más específico para el desarrollador en logs
             return handlerInput.responseBuilder
                 .speak('Lo siento, ha habido un problema al conectar con la base de datos de Firebase. Revisa los logs de CloudWatch.')
                 .getResponse();
@@ -155,7 +122,7 @@ const SecretWordIntentHandler = {
     handle(handlerInput) {
         const secretWordValue = Alexa.getSlotValue(handlerInput.requestEnvelope, 'secret_word').toLowerCase();
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
-        const pending = sessionAttributes.pendingPlaylist;
+        const pending = sessionAttributes.pendingUser;
 
         if (!pending || secretWordValue !== pending.secretWord) {
             return handlerInput.responseBuilder
@@ -165,13 +132,210 @@ const SecretWordIntentHandler = {
         }
 
         // Acceso concedido
-        sessionAttributes.currentPlaylist = pending;
-        delete sessionAttributes.pendingPlaylist;
+        sessionAttributes.authenticated = true;
+        sessionAttributes.user = pending;
+        delete sessionAttributes.pendingUser;
         handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
         return handlerInput.responseBuilder
-            .speak(`Acceso concedido. ¿Qué quieres adivinar? ¿La canción o el cantante?`)
-            .reprompt('Dime: adivinar canción o adivinar cantante.')
+            .speak(`Acceso concedido. Puedes escuchar tus listas, añadir la de un amigo con su pin, elegir una lista o jugar. Si necesitas ayuda con el menú, di "ayuda". ¿Qué quieres hacer?`)
+            .reprompt('¿Qué quieres hacer? Puedes decir "ayuda".')
+            .getResponse();
+    }
+};
+
+const HelpIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+               Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.HelpIntent';
+    },
+    handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder
+                .speak('Dime tu PIN para empezar a jugar.')
+                .reprompt('Dime el PIN.')
+                .getResponse();
+        }
+        return handlerInput.responseBuilder
+            .speak(HELP_MESSAGE)
+            .reprompt(HELP_MESSAGE)
+            .getResponse();
+    }
+};
+
+const ListPlaylistsIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'ListPlaylistsIntent';
+    },
+    async handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder.speak('Dime tu PIN primero.').getResponse();
+        }
+
+        try {
+            const uid = sessionAttributes.user.uid;
+            const playlistsQuery = await db.collection('playlists').where('ownerUid', '==', uid).get();
+            
+            if (playlistsQuery.empty) {
+                return handlerInput.responseBuilder
+                    .speak('No tienes ninguna lista. Puedes añadir una de un amigo diciendo su pin, o crear una en la web. ¿Qué quieres hacer?')
+                    .reprompt('¿Qué quieres hacer?')
+                    .getResponse();
+            }
+
+            let listsInfo = [];
+            let speech = `Tienes ${playlistsQuery.size} listas: `;
+            
+            playlistsQuery.forEach((doc, index) => {
+                const data = doc.data();
+                listsInfo.push({ title: data.title, url: data.url });
+                speech += `${index + 1}. ${data.title}. `;
+            });
+
+            sessionAttributes.userPlaylists = listsInfo;
+            handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
+            
+            speech += 'Para escoger una, di "escoger la lista" seguido del número. ¿Cuál quieres?';
+
+            return handlerInput.responseBuilder
+                .speak(speech)
+                .reprompt('Di "escoger la lista" y el número para seleccionar una.')
+                .getResponse();
+        } catch (error) {
+            console.error(error);
+            return handlerInput.responseBuilder.speak('Hubo un error al buscar tus listas.').getResponse();
+        }
+    }
+};
+
+const AddFriendPlaylistIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AddFriendPlaylistIntent';
+    },
+    async handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder.speak('Dime tu PIN primero.').getResponse();
+        }
+
+        let pin = Alexa.getSlotValue(handlerInput.requestEnvelope, 'pin');
+        if (pin) pin = pin.replace(/\s/g, '');
+
+        try {
+            const pinDoc = await db.collection('pins').doc(pin).get();
+            if (!pinDoc.exists) {
+                return handlerInput.responseBuilder
+                    .speak(`No he encontrado un amigo con el PIN ${pin}. ¿Te gustaría hacer otra cosa?`)
+                    .reprompt('¿Qué quieres hacer?')
+                    .getResponse();
+            }
+
+            const uid = pinDoc.data().uid;
+            
+            const userDoc = await db.collection('users').doc(uid).get();
+            let userName = 'tu amigo';
+            if (userDoc.exists && userDoc.data().displayName) {
+                 userName = userDoc.data().displayName;
+            }
+
+            const playlistsQuery = await db.collection('playlists').where('ownerUid', '==', uid).get();
+            
+            if (playlistsQuery.empty) {
+                return handlerInput.responseBuilder
+                    .speak(`${userName} no tiene listas creadas. ¿Qué quieres hacer ahora?`)
+                    .reprompt('¿Qué quieres hacer?')
+                    .getResponse();
+            }
+
+            let listsInfo = [];
+            let speech = `He encontrado a ${userName}. Tiene ${playlistsQuery.size} listas: `;
+            
+            playlistsQuery.forEach((doc, index) => {
+                const data = doc.data();
+                listsInfo.push({ title: data.title, url: data.url });
+                speech += `${index + 1}. ${data.title}. `;
+            });
+
+            sessionAttributes.userPlaylists = listsInfo;
+            handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
+            
+            speech += 'Para escoger una de ellas de forma temporal, di "escoger la lista" y el número.';
+
+            return handlerInput.responseBuilder
+                .speak(speech)
+                .reprompt('Di "escoger la lista" y el número para cargarla.')
+                .getResponse();
+        } catch (error) {
+            console.error(error);
+            return handlerInput.responseBuilder.speak('Hubo un error al buscar a tu amigo.').getResponse();
+        }
+    }
+};
+
+const ChoosePlaylistIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'ChoosePlaylistIntent';
+    },
+    handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder.speak('Dime tu PIN primero.').getResponse();
+        }
+
+        if (!sessionAttributes.userPlaylists || sessionAttributes.userPlaylists.length === 0) {
+            return handlerInput.responseBuilder
+                .speak('Primero debes listar tus listas o añadir a un amigo. Di ayuda para opciones.')
+                .reprompt('¿Qué quieres hacer?')
+                .getResponse();
+        }
+
+        const numStr = Alexa.getSlotValue(handlerInput.requestEnvelope, 'playlistNumber');
+        const num = parseInt(numStr, 10);
+
+        if (isNaN(num) || num < 1 || num > sessionAttributes.userPlaylists.length) {
+            return handlerInput.responseBuilder
+                .speak('El número que has dicho no corresponde a ninguna lista de las que te leí. Escoge otro.')
+                .reprompt('Di escoger la lista y el número.')
+                .getResponse();
+        }
+
+        const selected = sessionAttributes.userPlaylists[num - 1];
+        sessionAttributes.currentPlaylist = selected;
+        handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
+
+        return handlerInput.responseBuilder
+            .speak(`Has seleccionado la lista "${selected.title}". Puedes decir "jugar" para empezar la partida.`)
+            .reprompt('Di jugar para empezar o salir si prefieres marcharte.')
+            .getResponse();
+    }
+};
+
+const PlayIntentHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest'
+            && Alexa.getIntentName(handlerInput.requestEnvelope) === 'PlayIntent';
+    },
+    handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder.speak('Dime tu PIN primero.').getResponse();
+        }
+
+        if (!sessionAttributes.currentPlaylist) {
+            return handlerInput.responseBuilder
+                .speak('Antes de jugar tienes que seleccionar una lista. Primero listemos tus opciones. Di "listar mis listas".')
+                .reprompt('¿Qué quieres hacer?')
+                .getResponse();
+        }
+
+        return handlerInput.responseBuilder
+            .speak('¡Genial! ¿A qué quieres jugar en esta lista? ¿Adivinar canciones o cantantes?')
+            .reprompt('Dime: canciones o cantantes.')
             .getResponse();
     }
 };
@@ -182,39 +346,37 @@ const GameModeIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'GameModeIntent';
     },
     async handle(handlerInput) {
-        const mode = Alexa.getSlotValue(handlerInput.requestEnvelope, 'mode'); // 'canción' o 'cantante'
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.authenticated) return handlerInput.responseBuilder.speak('Dime tu PIN primero.').getResponse();
         
+        if (!sessionAttributes.currentPlaylist) {
+            return handlerInput.responseBuilder
+                .speak('Primero tienes que seleccionar una lista. Di "mis listas" y luego "seleccionar la uno".')
+                .getResponse();
+        }
+
+        const mode = Alexa.getSlotValue(handlerInput.requestEnvelope, 'mode');
         sessionAttributes.gameMode = mode.includes('canción') ? 'title' : 'artist';
         sessionAttributes.score = 0;
         sessionAttributes.currentRound = 0;
         
-        // Cargar tracks desde la URL de la playlist
         try {
             let apiUrl = sessionAttributes.currentPlaylist.url;
-            
-            // Si es una URL web de Deezer, extraer el ID y convertir a URL de API
             const deezerMatch = apiUrl.match(/playlist\/(\d+)/);
             if (deezerMatch) {
                 apiUrl = `https://api.deezer.com/playlist/${deezerMatch[1]}`;
             }
 
-            console.log(`Pidiendo canciones a: ${apiUrl}`);
             const response = await axios.get(apiUrl);
-            
             let trackList = [];
             if (response.data && response.data.tracks && response.data.tracks.data) {
-                // Formato Deezer API
                 trackList = response.data.tracks.data;
             } else if (response.data && Array.isArray(response.data)) {
-                // Formato genérico
                 trackList = response.data;
             } else if (response.data && response.data.tracks && Array.isArray(response.data.tracks)) {
-                // Formato heredado
                 trackList = response.data.tracks;
             }
 
-            // Mapear al formato que espera el juego y filtrar los que no tienen preview de audio
             sessionAttributes.tracks = trackList.map(t => ({
                 title: t.title,
                 artist: t.artist ? (t.artist.name || t.artist) : 'Desconocido',
@@ -222,10 +384,10 @@ const GameModeIntentHandler = {
             })).filter(t => t.preview);
             
             if (sessionAttributes.tracks.length === 0) {
-                throw new Error("No se encontraron canciones con preview de audio en la lista.");
+                throw new Error("No preview available");
             }
 
-            // Barajar
+            // Shuffle
             sessionAttributes.tracks.sort(() => Math.random() - 0.5);
             handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
@@ -233,7 +395,8 @@ const GameModeIntentHandler = {
         } catch (e) {
             console.error(`Error cargando playlist: ${e.message}`);
             return handlerInput.responseBuilder
-                .speak('No he podido cargar las canciones de esta lista. Asegúrate de que la URL sea válida o que la lista en Deezer sea pública.')
+                .speak('Hubo un problema intentando cargar las canciones de esta lista. Prueba elegir otra lista diciendo "mis listas".')
+                .reprompt('¿Qué te gustaría hacer?')
                 .getResponse();
         }
     }
@@ -245,15 +408,22 @@ const AnswerIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AnswerIntent';
     },
     handle(handlerInput) {
-        const userAnswer = Alexa.getSlotValue(handlerInput.requestEnvelope, 'answer').toLowerCase();
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+        if (!sessionAttributes.tracks) {
+             return handlerInput.responseBuilder
+                .speak('No estamos en medio de un juego. Prueba diciendo "jugar" o "ayuda".')
+                .reprompt('¿Qué quieres hacer?')
+                .getResponse();
+        }
+
+        const userAnswer = Alexa.getSlotValue(handlerInput.requestEnvelope, 'answer').toLowerCase();
         const currentTrack = sessionAttributes.tracks[sessionAttributes.currentRound];
         
         const target = sessionAttributes.gameMode === 'title' ? currentTrack.title : currentTrack.artist;
         const distance = levenshtein(userAnswer, target.toLowerCase());
         
         let feedback = '';
-        if (distance <= 3) { // Margen de error aceptable
+        if (distance <= 3) {
             sessionAttributes.score += 10;
             feedback = `¡Correcto! Era ${target}.`;
         } else {
@@ -264,40 +434,30 @@ const AnswerIntentHandler = {
         handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
         if (sessionAttributes.currentRound >= Math.min(GAME_ROUNDS, sessionAttributes.tracks.length)) {
+            // Fin del juego, reinicia estado para nueva partida
+            sessionAttributes.tracks = null;
+            handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
             return handlerInput.responseBuilder
-                .speak(`${feedback} Fin del juego. Tu puntuación final es de ${sessionAttributes.score} puntos. ¡Hasta pronto!`)
-                .withShouldEndSession(true)
+                .speak(`${feedback} Fin de la partida. Has conseguido ${sessionAttributes.score} puntos. Puedes probar con otra lista, ver el menú o salir. ¿Qué decides?`)
+                .reprompt('¿Qué quieres hacer ahora? Puedes ver el menú.')
                 .getResponse();
         }
 
-        return startNextRound(handlerInput, feedback);
+        return startNextRound(handlerInput, feedback, true);
     }
 };
 
-function startNextRound(handlerInput, prefix = '') {
+function startNextRound(handlerInput, prefix = '', waitAnswer = true) {
     const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
     const track = sessionAttributes.tracks[sessionAttributes.currentRound];
-    
-    // Alexa SSML exige HTTPS y formato específico. Las URLs de Deezer suelen ser compatibles.
     const audioUrl = track.preview; 
     const speech = `${prefix} Ronda ${sessionAttributes.currentRound + 1}. Escucha: <audio src="${audioUrl}" /> ¿Cómo se llama?`;
 
     return handlerInput.responseBuilder
         .speak(speech)
-        .reprompt('Dime el nombre o el artista según el modo.')
+        .reprompt('Dime cómo se llama según el modo seleccionado.')
         .getResponse();
 }
-
-const HelpIntentHandler = {
-    canHandle(handlerInput) {
-        return Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.HelpIntent';
-    },
-    handle(handlerInput) {
-        return handlerInput.responseBuilder
-            .speak('Dime tu PIN para empezar a jugar.')
-            .getResponse();
-    }
-};
 
 const CancelAndStopIntentHandler = {
     canHandle(handlerInput) {
@@ -306,7 +466,7 @@ const CancelAndStopIntentHandler = {
     },
     handle(handlerInput) {
         return handlerInput.responseBuilder
-            .speak('¡Adiós!')
+            .speak('¡Gracias por jugar a Reto Musical! Me despido, ¡hasta pronto!')
             .withShouldEndSession(true)
             .getResponse();
     }
@@ -323,8 +483,8 @@ const RepeatIntentHandler = {
             return startNextRound(handlerInput);
         }
         return handlerInput.responseBuilder
-            .speak('No tengo nada que repetir. ¿Cuál es el PIN de tu lista?')
-            .reprompt('Dime tu PIN para empezar.')
+            .speak('No tengo ninguna canción pendiente por repetir. ¿Qué más quieres hacer?')
+            .reprompt('Di "ayuda" para el menú.')
             .getResponse();
     }
 };
@@ -335,11 +495,21 @@ const FallbackIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.FallbackIntent';
     },
     handle(handlerInput) {
-        const speakOutput = 'Lo siento, no sé como ayudarte con eso. Intenta decir ayuda para más opciones.';
+        const speakOutput = 'Lo siento, no sé cómo ayudarte con eso. Intenta decir "ayuda" para ver las opciones disponibles en el menú.';
         return handlerInput.responseBuilder
             .speak(speakOutput)
             .reprompt(speakOutput)
             .getResponse();
+    }
+};
+
+const SessionEndedRequestHandler = {
+    canHandle(handlerInput) {
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'SessionEndedRequest';
+    },
+    handle(handlerInput) {
+        console.log(`~~~~ Session ended: ${JSON.stringify(handlerInput.requestEnvelope)}`);
+        return handlerInput.responseBuilder.getResponse();
     }
 };
 
@@ -348,8 +518,8 @@ const ErrorHandler = {
     handle(handlerInput, error) {
         console.error(`Error handled: ${error.message}`);
         return handlerInput.responseBuilder
-            .speak('Perdona, no te he entendido. ¿Puedes repetirlo?')
-            .reprompt('No te he entendido.')
+            .speak('Perdona, ha ocurrido un error o no te he entendido bien. ¿Qué te gustaría hacer? Puedes pedir "ayuda".')
+            .reprompt('Dime "ayuda" para ver el menú.')
             .getResponse();
     }
 };
@@ -359,6 +529,10 @@ exports.handler = Alexa.SkillBuilders.custom()
         LaunchRequestHandler,
         PinIntentHandler,
         SecretWordIntentHandler,
+        ListPlaylistsIntentHandler,
+        AddFriendPlaylistIntentHandler,
+        ChoosePlaylistIntentHandler,
+        PlayIntentHandler,
         GameModeIntentHandler,
         AnswerIntentHandler,
         HelpIntentHandler,

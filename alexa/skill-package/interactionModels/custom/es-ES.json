@@ -19,7 +19,10 @@
             "qué tengo que hacer",
             "cómo se juega",
             "no entiendo",
-            "qué pasa"
+            "qué pasa",
+            "menú",
+            "opciones",
+            "qué opciones tengo"
           ]
         },
         {
@@ -84,8 +87,7 @@
             "accedo con el pin {pin}",
             "código {pin}",
             "usa el pin {pin}",
-            "mi clave es {pin}",
-            "{pin}"
+            "mi clave es {pin}"
           ]
         },
         {
@@ -146,6 +148,64 @@
             "pongo {answer}",
             "será {answer}",
             "apuesto por {answer}"
+          ]
+        },
+        {
+          "name": "ListPlaylistsIntent",
+          "samples": [
+            "listar las listas que tengo",
+            "mis listas",
+            "qué listas tengo",
+            "leer mis listas",
+            "cuántas listas tengo",
+            "ver mis listas"
+          ]
+        },
+        {
+          "name": "ChoosePlaylistIntent",
+          "slots": [
+            {
+              "name": "playlistNumber",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "escoger la lista {playlistNumber}",
+            "elegir la {playlistNumber}",
+            "seleccionar la número {playlistNumber}",
+            "quiero la lista {playlistNumber}",
+            "la uno",
+            "la dos",
+            "la tres",
+            "la cuatro",
+            "la cinco"
+          ]
+        },
+        {
+          "name": "PlayIntent",
+          "samples": [
+            "jugar",
+            "empezar a jugar",
+            "iniciar el juego",
+            "vamos a jugar",
+            "quiero jugar"
+          ]
+        },
+        {
+          "name": "AddFriendPlaylistIntent",
+          "slots": [
+            {
+              "name": "pin",
+              "type": "AMAZON.FOUR_DIGIT_NUMBER"
+            }
+          ],
+          "samples": [
+            "añadir una lista de un amigo con el pin {pin}",
+            "añadir un amigo con el pin {pin}",
+            "añadir amigo con pin {pin}",
+            "lista de amigo con pin {pin}",
+            "amigo {pin}",
+            "añadir pin {pin}"
           ]
         }
       ],
