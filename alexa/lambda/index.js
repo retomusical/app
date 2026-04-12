@@ -101,8 +101,8 @@ const PinIntentHandler = {
             handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
             return handlerInput.responseBuilder
-                .speak(`Hola ${userData.displayName || ''}. Por seguridad, dime ahora tu palabra clave de acceso.`)
-                .reprompt('Dime la palabra clave que aparece en tu perfil web.')
+                .speak(`Hola ${userData.displayName || ''}. Por seguridad, di tu palabra clave precedida de "la clave es". Por ejemplo: "la clave es rosa".`)
+                .reprompt('Di la clave es, seguido de tu palabra. Por ejemplo: la clave es rosa.')
                 .getResponse();
 
         } catch (error) {
@@ -120,11 +120,33 @@ const SecretWordIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'SecretWordIntent';
     },
     handle(handlerInput) {
-        const secretWordValue = Alexa.getSlotValue(handlerInput.requestEnvelope, 'secret_word').toLowerCase();
         const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
         const pending = sessionAttributes.pendingUser;
 
-        if (!pending || secretWordValue !== pending.secretWord) {
+        console.log("SecretWordIntent recibido. pendingUser:", JSON.stringify(pending));
+
+        // Si no hay sesión de login pendiente (no se dijo el PIN antes)
+        if (!pending) {
+            return handlerInput.responseBuilder
+                .speak('Antes de la palabra clave necesito que me digas tu PIN de cuatro dígitos.')
+                .reprompt('Dime tu PIN para empezar.')
+                .getResponse();
+        }
+
+        const rawSlot = Alexa.getSlotValue(handlerInput.requestEnvelope, 'secret_word');
+        console.log("Slot secret_word recibido (raw):", rawSlot);
+
+        if (!rawSlot) {
+            return handlerInput.responseBuilder
+                .speak('No he entendido la palabra clave. Por favor, dímela de nuevo.')
+                .reprompt('Dime tu palabra clave de acceso.')
+                .getResponse();
+        }
+
+        const secretWordValue = rawSlot.toLowerCase().trim();
+        console.log("Palabra clave normalizada:", secretWordValue, "| Esperada:", pending.secretWord);
+
+        if (secretWordValue !== pending.secretWord) {
             return handlerInput.responseBuilder
                 .speak('Esa no es la palabra clave correcta. Inténtalo de nuevo.')
                 .reprompt('Dime la palabra clave correcta.')
@@ -137,12 +159,15 @@ const SecretWordIntentHandler = {
         delete sessionAttributes.pendingUser;
         handlerInput.attributesManager.setSessionAttributes(sessionAttributes);
 
+        console.log("Login exitoso para:", pending.displayName);
+
         return handlerInput.responseBuilder
             .speak(`Acceso concedido. Puedes escuchar tus listas, añadir la de un amigo con su pin, elegir una lista o jugar. Si necesitas ayuda con el menú, di "ayuda". ¿Qué quieres hacer?`)
             .reprompt('¿Qué quieres hacer? Puedes decir "ayuda".')
             .getResponse();
     }
 };
+
 
 const HelpIntentHandler = {
     canHandle(handlerInput) {
@@ -465,6 +490,18 @@ const CancelAndStopIntentHandler = {
                 Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.StopIntent');
     },
     handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+
+        // Si estamos en medio del login (esperando la palabra clave), no cerrar la sesión.
+        // Es probable que la palabra clave del usuario coincida con un sample de Stop/Cancel.
+        if (sessionAttributes.pendingUser) {
+            console.log("Stop/Cancel recibido durante login, ignorando y pidiendo palabra clave.");
+            return handlerInput.responseBuilder
+                .speak('Recuerda que necesito que me digas tu palabra clave. Di "la clave es" seguido de tu palabra.')
+                .reprompt('Di la clave es, seguido de tu palabra secreta.')
+                .getResponse();
+        }
+
         return handlerInput.responseBuilder
             .speak('¡Gracias por jugar a Reto Musical! Me despido, ¡hasta pronto!')
             .withShouldEndSession(true)
@@ -495,6 +532,25 @@ const FallbackIntentHandler = {
             && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.FallbackIntent';
     },
     handle(handlerInput) {
+        const sessionAttributes = handlerInput.attributesManager.getSessionAttributes();
+
+        // Si estamos esperando la palabra clave, dar instrucciones precisas
+        if (sessionAttributes.pendingUser) {
+            console.log("Fallback recibido durante login, redirigiendo a pedir palabra clave.");
+            return handlerInput.responseBuilder
+                .speak('No he captado lo que has dicho. Recuerda decir "la clave es" seguido de tu palabra secreta. Por ejemplo: "la clave es rosa".')
+                .reprompt('Di la clave es, seguido de tu palabra secreta.')
+                .getResponse();
+        }
+
+        // Si no estamos autenticados aún, pedir el PIN
+        if (!sessionAttributes.authenticated) {
+            return handlerInput.responseBuilder
+                .speak('No te he entendido. Para empezar, dime tu PIN. Por ejemplo: "mi pin es 1234".')
+                .reprompt('Dime tu PIN de cuatro dígitos.')
+                .getResponse();
+        }
+
         const speakOutput = 'Lo siento, no sé cómo ayudarte con eso. Intenta decir "ayuda" para ver las opciones disponibles en el menú.';
         return handlerInput.responseBuilder
             .speak(speakOutput)

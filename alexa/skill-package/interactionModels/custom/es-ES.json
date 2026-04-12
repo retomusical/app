@@ -95,7 +95,7 @@
           "slots": [
             {
               "name": "secret_word",
-              "type": "CATCH_ALL_WORD"
+              "type": "AMAZON.SearchQuery"
             }
           ],
           "samples": [
@@ -104,8 +104,7 @@
             "mi palabra secreta es {secret_word}",
             "clave {secret_word}",
             "es {secret_word}",
-            "la clave es {secret_word}",
-            "{secret_word}"
+            "la clave es {secret_word}"
           ]
         },
         {
