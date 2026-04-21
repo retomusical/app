@@ -213,11 +213,12 @@ const ListPlaylistsIntentHandler = {
 
             let listsInfo = [];
             let speech = `Tienes ${playlistsQuery.size} listas: `;
-            
-            playlistsQuery.forEach((doc, index) => {
+            let index = 0;
+            playlistsQuery.forEach((doc) => {
                 const data = doc.data();
                 listsInfo.push({ title: data.title, url: data.url });
                 speech += `${index + 1}. ${data.title}. `;
+                index++;
             });
 
             sessionAttributes.userPlaylists = listsInfo;
@@ -278,11 +279,12 @@ const AddFriendPlaylistIntentHandler = {
 
             let listsInfo = [];
             let speech = `He encontrado a ${userName}. Tiene ${playlistsQuery.size} listas: `;
-            
-            playlistsQuery.forEach((doc, index) => {
+            let idx = 0;
+            playlistsQuery.forEach((doc) => {
                 const data = doc.data();
                 listsInfo.push({ title: data.title, url: data.url });
-                speech += `${index + 1}. ${data.title}. `;
+                speech += `${idx + 1}. ${data.title}. `;
+                idx++;
             });
 
             sessionAttributes.userPlaylists = listsInfo;
@@ -381,7 +383,26 @@ const GameModeIntentHandler = {
         }
 
         const mode = Alexa.getSlotValue(handlerInput.requestEnvelope, 'mode');
-        sessionAttributes.gameMode = mode.includes('canción') ? 'title' : 'artist';
+        // Leer el ID de la resolución para mayor robustez (cubre sinónimos como "cantante", "artista", etc.)
+        let modeId = null;
+        try {
+            const slot = handlerInput.requestEnvelope.request.intent.slots.mode;
+            if (slot && slot.resolutions && slot.resolutions.resolutionsPerAuthority) {
+                const resolution = slot.resolutions.resolutionsPerAuthority[0];
+                if (resolution && resolution.status.code === 'ER_SUCCESS_MATCH') {
+                    modeId = resolution.values[0].value.id; // 'CANCION' o 'ARTISTA'
+                }
+            }
+        } catch (e) {
+            console.warn('No se pudo leer la resolución del slot mode, usando valor de texto:', mode);
+        }
+        // Fallback: si no hay resolución, intentar por texto
+        if (!modeId) {
+            const modeText = (mode || '').toLowerCase();
+            modeId = (modeText.includes('canc') || modeText.includes('título') || modeText.includes('tema') || modeText.includes('pista')) ? 'CANCION' : 'ARTISTA';
+        }
+        console.log('Game mode resuelto:', modeId);
+        sessionAttributes.gameMode = modeId === 'CANCION' ? 'title' : 'artist';
         sessionAttributes.score = 0;
         sessionAttributes.currentRound = 0;
         
@@ -441,7 +462,14 @@ const AnswerIntentHandler = {
                 .getResponse();
         }
 
-        const userAnswer = Alexa.getSlotValue(handlerInput.requestEnvelope, 'answer').toLowerCase();
+        const rawAnswer = Alexa.getSlotValue(handlerInput.requestEnvelope, 'answer');
+        if (!rawAnswer) {
+            return handlerInput.responseBuilder
+                .speak('No te he escuchado bien. ¿Cuál es tu respuesta?')
+                .reprompt('Dime el nombre de la canción o el artista.')
+                .getResponse();
+        }
+        const userAnswer = rawAnswer.toLowerCase();
         const currentTrack = sessionAttributes.tracks[sessionAttributes.currentRound];
         
         const target = sessionAttributes.gameMode === 'title' ? currentTrack.title : currentTrack.artist;
@@ -486,7 +514,8 @@ function startNextRound(handlerInput, prefix = '', waitAnswer = true) {
 
 const CancelAndStopIntentHandler = {
     canHandle(handlerInput) {
-        return (Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.CancelIntent' ||
+        return Alexa.getRequestType(handlerInput.requestEnvelope) === 'IntentRequest' &&
+               (Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.CancelIntent' ||
                 Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.StopIntent');
     },
     handle(handlerInput) {
